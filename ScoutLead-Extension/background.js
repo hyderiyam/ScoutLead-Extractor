@@ -603,8 +603,17 @@ function highlightOrangeData(values) {
 function getNewDataItems(current, source) {
   const news = [];
   if (source.email && source.email !== current.email) news.push(source.email);
-  if (source.phone && source.phone !== current.phone) news.push(source.phone);
+  
+  if (source.phones && source.phones.length > 0) {
+    source.phones.forEach(p => {
+      if (!(current.phones || []).includes(p)) news.push(p);
+    });
+  } else if (source.phone && source.phone !== current.phone) {
+    news.push(source.phone);
+  }
+
   if (source.address && source.address !== current.address) news.push(source.address);
+  
   if (source.linkedinLinks) {
     source.linkedinLinks.forEach(l => {
       let isNew = true;
@@ -612,6 +621,15 @@ function getNewDataItems(current, source) {
       if (isNew) news.push(l);
     });
   }
+
+  if (source.social) {
+    for (const key of ['facebook', 'instagram', 'twitter', 'youtube', 'tiktok', 'pinterest']) {
+      if (source.social[key] && (!current.social || source.social[key] !== current.social[key])) {
+        news.push(source.social[key]);
+      }
+    }
+  }
+  
   return news;
 }
 
