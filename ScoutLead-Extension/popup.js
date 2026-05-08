@@ -741,8 +741,31 @@ function buildAndDownload3SheetExcel(results, filename) {
     Action_Required: r.technicalReason === 'CAPTCHA_BLOCKED' || r.technicalReason === 'ACCESS_DENIED' ? 'Manual Verification Needed' : 'None'
   }));
 
+  // Sheet 4: Outreach Campaigns (Flattened for Sending)
+  const outreachReady = [];
+  results.filter(r => (r.emails && r.emails.length > 0) || r.email || (r.phones && r.phones.length > 0) || r.phone).forEach(r => {
+    const allEmails = r.emails && r.emails.length > 0 ? r.emails : (r.email ? [r.email] : ['']);
+    const allPhones = r.phones && r.phones.length > 0 ? r.phones : (r.phone ? [r.phone] : ['']);
+    const allLinkedIn = r.linkedinLinks && r.linkedinLinks.length > 0 ? r.linkedinLinks : (r.bestLinkedIn ? [r.bestLinkedIn] : ['']);
+
+    const maxLen = Math.max(allEmails.length, allPhones.length, allLinkedIn.length);
+    
+    for (let i = 0; i < maxLen; i++) {
+      outreachReady.push({
+        Company_Name: r.name || 'N/A',
+        Website: r.website || 'N/A',
+        Email_Address: allEmails[i] || allEmails[0] || 'N/A',
+        Phone_Number: allPhones[i] || allPhones[0] || 'N/A',
+        LinkedIn_Profile: allLinkedIn[i] || allLinkedIn[0] || 'N/A',
+        Address: r.address || 'N/A',
+        Confidence: r.confidenceScore + '%'
+      });
+    }
+  });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(successfulLeads), 'Successful Leads');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(outreachReady), 'Outreach Ready');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allRawData), 'All Raw Data');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(technicalLogs), 'Technical Report');
   
