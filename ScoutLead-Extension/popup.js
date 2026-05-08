@@ -684,8 +684,10 @@ function buildAndDownload3SheetExcel(results, filename) {
       allRawData.push({ Company: r.name, Website: r.website, Data_Type: 'Email', Value: r.email, Confidence: r.confidenceScore + '%' });
     }
 
-    // Add Phone
-    if (r.phone) {
+    // Add Phone(s)
+    if (r.phones && r.phones.length > 0) {
+      r.phones.forEach(p => allRawData.push({ Company: r.name, Website: r.website, Data_Type: 'Phone', Value: p, Confidence: r.confidenceScore + '%' }));
+    } else if (r.phone) {
       allRawData.push({ Company: r.name, Website: r.website, Data_Type: 'Phone', Value: r.phone, Confidence: r.confidenceScore + '%' });
     }
 

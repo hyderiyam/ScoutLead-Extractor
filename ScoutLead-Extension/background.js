@@ -188,7 +188,7 @@ async function turboForensics(url, companyName) {
 
   let finalData = {
     email: '', emails: [], bestEmail: '', emailType: '',
-    phone: '', address: '', name: companyName || '', website: url, url: url,
+    phone: '', phones: [], address: '', name: companyName || '', website: url, url: url,
     reason: '', technicalReason: '', confidenceScore: 0,
     screenshots: [], isWhatsApp: false, deliverability: 'N/A',
     linkedinLinks: [], bestLinkedIn: '',
@@ -206,10 +206,7 @@ async function turboForensics(url, companyName) {
     saveState();
     chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
 
-    if (!auditWindowId) {
-      await initializeAuditWindow();
-    }
-    const scoutTab = await safeCreateTab({ windowId: auditWindowId, url: targetUrl, active: false });
+    const scoutTab = await safeCreateTab({ url: targetUrl, active: false });
     scoutTabId = scoutTab.id;
 
     await waitForTabComplete(scoutTabId, 15000); await sleep(3000);
@@ -332,14 +329,9 @@ async function captureWithPhotographer(targetUrl, label, items, finalData) {
     if (!auditWindowId) return;
   }
 
-  // Sequential Lock: Only one snap at a time (Race-Condition Safe)
-  while (true) {
-    if (!isPhotographerBusy) {
-      isPhotographerBusy = true;
-      break;
-    }
-    await sleep(300);
-  }
+  // Sequential Lock: Only one snap at a time
+  while (isPhotographerBusy) { await sleep(1000); }
+  isPhotographerBusy = true;
 
   let photoTabId = null;
   try {
@@ -422,7 +414,7 @@ async function captureWithPhotographer(targetUrl, label, items, finalData) {
 function scrapeFullPage() {
   try {
     const res = {
-      emails: [], email: '', phone: '', address: '', linkedinLinks: [],
+      emails: [], email: '', phone: '', phones: [], address: '', linkedinLinks: [],
       teamLink: '', contactLink: '',
       social: { facebook: '', instagram: '', twitter: '', youtube: '', tiktok: '', pinterest: '' }
     };
@@ -500,19 +492,25 @@ function scrapeFullPage() {
     res.emails = allEmails;
     if (allEmails.length > 0) res.email = allEmails[0];
 
-    // ── Phone: multi-pattern ──
-    if (!res.phone) {
-      const phonePatterns = [
-        /\+92[\s\-]?\d{3}[\s\-]?\d{7}/,                              // Pakistan mobile
-        /0\d{2,3}[\s\-]?\d{7,8}/,                                    // Local 0XXX
-        /\+?1?\s*\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/,            // US/Canada
-        /\+?[\d][\d\s\-\(\)]{8,14}[\d]/,                             // International fallback
-      ];
-      for (const pat of phonePatterns) {
-        const m = text.match(pat);
-        if (m) { res.phone = m[0].trim(); break; }
-      }
+    // ── Phone: multi-pattern (Collect all) ──
+    const allPhones = [];
+    const phonePatterns = [
+      /(?:\+92|0)[\s\-]?\d{3}[\s\-]?\d{7}/g,                              // Pakistan mobile
+      /(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})/g, // US/Canada
+      /(?:\+|00)\d{1,3}[\s\-]?\(?\d{1,4}\)?[\s\-]?\d{3,4}[\s\-]?\d{3,4}/g // International fallback
+    ];
+    for (const pat of phonePatterns) {
+      const matches = text.match(pat);
+      if (matches) matches.forEach(m => allPhones.push(m.trim()));
     }
+    // Deduplicate
+    const uniquePhonesMap = {};
+    allPhones.forEach(p => {
+       const clean = p.replace(/\D/g, '');
+       if (clean.length >= 8 && !uniquePhonesMap[clean]) uniquePhonesMap[clean] = p;
+    });
+    res.phones = Object.values(uniquePhonesMap);
+    if (res.phones.length > 0) res.phone = res.phones[0];
 
     // ── Address: schema tag or address element ──
     if (!res.address) {
@@ -611,7 +609,14 @@ function getNewDataItems(current, source) {
 function mergeData(target, source) {
   if (!source) return;
   if (!target.email && source.email) target.email = source.email;
-  if (!target.phone && source.phone) target.phone = source.phone;
+  if (source.phones && source.phones.length > 0) {
+    target.phones = [...new Set([...(target.phones || []), ...source.phones])];
+    if (!target.phone && target.phones.length > 0) target.phone = target.phones[0];
+  } else if (!target.phone && source.phone) {
+    target.phone = source.phone;
+    if (!target.phones) target.phones = [];
+    target.phones.push(source.phone);
+  }
   if (!target.address && source.address) target.address = source.address;
   // Merge all emails array
   if (source.emails && source.emails.length > 0) {
