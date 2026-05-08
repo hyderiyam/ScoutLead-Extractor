@@ -1,87 +1,136 @@
+// ═══════════════════════════════════════════════════════════
+//  background.js — TURBO FORENSICS (Off-Screen HD Capture)
+// ═══════════════════════════════════════════════════════════
+
 let state = {
-  isScanning: false,
-  results: [],
+  isRunning: false,
+  urls: [],
   currentIndex: 0,
-  targetUrls: [],
-  logs: []
+  results: [],
+  logs: [],
+  concurrency: 3,
+  delay: 2
 };
 
 let auditWindowId = null;
+let isPhotographerBusy = false;
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.action === 'getState') {
-    sendResponse(state);
-  } else if (msg.action === 'start') {
-    state.targetUrls = msg.urls;
-    state.isScanning = true;
-    state.results = [];
-    state.currentIndex = 0;
-    state.logs = [];
-    saveState();
-    startAudit();
-    sendResponse(true);
-  } else if (msg.action === 'pause') {
-    state.isScanning = false;
-    saveState();
-    sendResponse(true);
-  } else if (msg.action === 'clear') {
-    state = { isScanning: false, results: [], currentIndex: 0, targetUrls: [], logs: [] };
-    saveState();
-    sendResponse(true);
+chrome.storage.local.get(['savedState'], (data) => {
+  if (data.savedState) {
+    Object.assign(state, data.savedState);
+    state.isRunning = false;
   }
-  return true;
 });
 
 function saveState() {
-  chrome.storage.local.set({ extensionState: state });
+  chrome.storage.local.set({ savedState: state });
 }
 
-chrome.storage.local.get(['extensionState'], (res) => {
-  if (res.extensionState) state = res.extensionState;
-});
-
-async function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
+function addLog(url, message, type = 'info') {
+  const urlSafe = url ? String(url).substring(0, 30) : 'System';
+  const logEntry = { time: new Date().toLocaleTimeString(), url: urlSafe, message, type };
+  state.logs.unshift(logEntry);
+  if (state.logs.length > 50) state.logs.pop();
+  saveState();
+  chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
 }
 
-function calculateConfidence(data) {
-  let score = 0;
-  
-  if (data.emails && data.emails.length > 0) {
-    let bestEmail = data.emails[0];
-    let type = 'General';
-    let highestPriority = 0;
-
-    data.emails.forEach(e => {
-      const em = e.toLowerCase();
-      let priority = 1;
-      if (em.includes('founder') || em.includes('ceo') || em.includes('owner') || em.includes('president')) { priority = 10; type = 'Decision Maker'; }
-      else if (em.includes('sales') || em.includes('partner') || em.includes('contact')) { priority = 5; type = 'Sales/Partnership'; }
-      else if (em.includes('support') || em.includes('info') || em.includes('admin')) { priority = 3; type = 'General'; }
-
-      if (priority > highestPriority) {
-        highestPriority = priority;
-        bestEmail = e;
-        data.emailType = type;
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.action === 'startExtraction') {
+    if (state.urls.length === 0 || msg.urls[0] !== state.urls[0]) {
+      state.urls = msg.urls;
+      state.currentIndex = 0;
+      state.results = [];
+      state.logs = [];
+    }
+    state.isRunning = true;
+    state.concurrency = msg.concurrency || 3;
+    saveState();
+    initializeAuditWindow().then(() => {
+      for (let i = 0; i < state.concurrency; i++) {
+        processTurboQueue();
       }
     });
-
-    data.bestEmail = bestEmail;
-    score += (highestPriority * 5); // up to 50
+    sendResponse({ status: 'started' });
   }
+  else if (msg.action === 'stopExtraction') {
+    state.isRunning = false;
+    saveState();
+    sendResponse({ status: 'stopped' });
+  }
+  else if (msg.action === 'clearState') {
+    state = { isRunning: false, urls: [], currentIndex: 0, results: [], logs: [], concurrency: 3, delay: 2 };
+    saveState();
+    if (auditWindowId) chrome.windows.remove(auditWindowId).catch(() => { });
+    auditWindowId = null;
+    sendResponse({ status: 'cleared' });
+  }
+  else if (msg.action === 'getState') {
+    sendResponse(state);
+  }
+  else if (msg.action === 'startOutreachCampaign') {
+    processOutreachCampaign(msg.leads, msg.template, msg.subject, msg.channel);
+    sendResponse({ status: 'started' });
+  }
+});
 
-  if (data.phone) score += 20;
-  if (data.bestLinkedIn) score += 20;
-  if (data.social && data.social.facebook) score += 10;
-  
-  if (score > 100) score = 100;
-  if (score === 0 && data.technicalReason === '') score = 10;
-  
-  data.confidenceScore = score;
+// ── Outreach Campaign Logic ──────────────────────────────
+
+async function processOutreachCampaign(leads, template, subject, channel) {
+  for (let i = 0; i < leads.length; i++) {
+    const lead = leads[i];
+    const pct = Math.round(((i + 1) / leads.length) * 100);
+
+    const msg = template
+      .replace(/{{name}}/g, lead.name)
+      .replace(/{{company}}/g, lead.company)
+      .replace(/{{email}}/g, lead.email);
+
+    const sub = subject
+      .replace(/{{company}}/g, lead.company)
+      .replace(/{{name}}/g, lead.name);
+
+    try {
+      if (channel === 'gmail') {
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(lead.email)}&su=${encodeURIComponent(sub)}&body=${encodeURIComponent(msg)}`;
+        await safeCreateTab({ url: gmailUrl, active: false });
+      } else if (channel === 'linkedin' && lead.linkedin) {
+        let liUrl = lead.linkedin;
+        if (liUrl && !liUrl.startsWith('http')) liUrl = 'https://' + liUrl;
+        await safeCreateTab({ url: liUrl, active: false });
+      } else if (channel === 'whatsapp' && lead.phone) {
+        const cleanPhone = lead.phone.replace(/\D/g, '');
+        const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
+        await safeCreateTab({ url: waUrl, active: false });
+      }
+    } catch (e) {
+      console.error('Turbo Outreach Tab Error:', e);
+    }
+
+    chrome.runtime.sendMessage({ action: 'outreachProgress', percent: pct }).catch(() => { });
+    await sleep(2500);
+  }
 }
 
-async function safeCreateTab(url) {
-  if (!auditWindowId) {
+// ── Utility & Helper Functions ───────────────────────────
+
+async function safeCreateTab(createProperties) {
+  try {
+    return await chrome.tabs.create(createProperties);
+  } catch (e) {
+    if (e.message.includes('Tabs cannot be edited')) {
+      await sleep(1500);
+      return await chrome.tabs.create(createProperties);
+    }
+    throw e;
+  }
+}
+
+async function initializeAuditWindow() {
+  try {
+    if (auditWindowId) {
+      try { await chrome.windows.get(auditWindowId); return; } catch (e) { auditWindowId = null; }
+    }
     const win = await chrome.windows.create({
       url: 'about:blank',
       type: 'popup',
@@ -93,113 +142,592 @@ async function safeCreateTab(url) {
       focused: false
     });
     auditWindowId = win.id;
-  }
-  return await chrome.tabs.create({ windowId: auditWindowId, url, active: true });
+  } catch (e) { console.error('Win Init Error', e); }
 }
 
-async function startAudit() {
-  while (state.isScanning && state.currentIndex < state.targetUrls.length) {
-    const targetUrl = state.targetUrls[state.currentIndex];
-    
-    let finalData = {
-      url: targetUrl, name: new URL(targetUrl).hostname.replace('www.',''), 
-      emails: [], bestEmail: '', emailType: '', phone: '',
-      linkedinLinks: [], bestLinkedIn: '', social: {},
-      technicalReason: '', screenshots: []
-    };
+async function processTurboQueue() {
+  if (!state.isRunning || state.currentIndex >= state.urls.length) {
+    if (state.currentIndex >= state.urls.length && state.isRunning) {
+      state.isRunning = false;
+      addLog('System', 'Audit Engine Finished!', 'success');
+      if (auditWindowId) chrome.windows.remove(auditWindowId).catch(() => { });
+      auditWindowId = null;
+      saveState();
+    }
+    return;
+  }
 
-    chrome.runtime.sendMessage({ action: 'updateUI', state, currentTaskUrl: targetUrl }).catch(() => {});
+  const myIndex = state.currentIndex++;
+  const rawUrl = state.urls[myIndex];
+  if (!rawUrl) return processTurboQueue();
 
-    let scoutTabId = null;
-    try {
-      const tab = await safeCreateTab(targetUrl);
-      scoutTabId = tab.id;
-      
-      await sleep(5000); // Wait for load
-      
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: scoutTabId },
-        func: extractPageData
-      });
+  let name = '', url = rawUrl;
+  const separators = ['→', '->', '=>'];
+  for (const sep of separators) {
+    if (rawUrl.includes(sep)) {
+      const parts = rawUrl.split(sep);
+      name = parts[0].trim();
+      url = parts.slice(1).join(sep).trim();
+      break;
+    }
+  }
 
-      if (!results || !results[0] || !results[0].result) {
-        finalData.technicalReason = 'ACCESS_DENIED';
-      } else {
-        const cData = results[0].result;
-        if (cData.blocked) {
-          finalData.technicalReason = 'CAPTCHA_BLOCKED';
-        } else {
+  try {
+    await turboForensics(url, name);
+  } catch (err) {
+    addLog(url, 'Row Skipped', 'error');
+  }
+
+  if (state.isRunning) {
+    processTurboQueue();
+  }
+}
+
+async function turboForensics(url, companyName) {
+  if (!url || typeof url !== 'string' || url.trim() === '') return;
+
+  let finalData = {
+    email: '', emails: [], bestEmail: '', emailType: '',
+    phone: '', address: '', name: companyName || '', website: url, url: url,
+    reason: '', technicalReason: '', confidenceScore: 0,
+    screenshots: [], isWhatsApp: false, deliverability: 'N/A',
+    linkedinLinks: [], bestLinkedIn: '',
+    social: { facebook: '', instagram: '', twitter: '', youtube: '', tiktok: '', pinterest: '' }
+  };
+
+  let targetUrl = url.includes('http') ? url.substring(url.indexOf('http')).trim() : 'https://' + url;
+  let scoutTabId = null;
+
+  try {
+    addLog(url, '[Scout] Deep scanning...');
+
+    // ── Push to results IMMEDIATELY so card shows in UI right away ──
+    state.results.push(finalData);
+    saveState();
+    chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
+
+    const scoutTab = await safeCreateTab({ url: targetUrl, active: false });
+    scoutTabId = scoutTab.id;
+
+    await waitForTabComplete(scoutTabId, 15000); await sleep(3000);
+
+    // ── Scroll to trigger lazy-loaded JS content ──
+    await chrome.scripting.executeScript({
+      target: { tabId: scoutTabId },
+      func: () => {
+        window.scrollTo(0, document.body.scrollHeight);
+        setTimeout(() => window.scrollTo(0, 0), 800);
+      }
+    }).catch(() => { });
+    await sleep(1500);
+
+    // ── Login Wall Detection ──
+    const loginCheck = await chrome.scripting.executeScript({
+      target: { tabId: scoutTabId },
+      func: () => {
+        const txt = (document.body?.innerText || '').toLowerCase();
+        return txt.includes('sign in to view') || txt.includes('login to see') ||
+          txt.includes('members only') || txt.includes('create an account to') ||
+          (!!document.querySelector('input[type="password"]') && txt.includes('login'));
+      }
+    }).catch(() => [{ result: false }]);
+    if (loginCheck?.[0]?.result) {
+      finalData.technicalReason = 'ACCESS_DENIED';
+      addLog(url, '[Scout] ⚠️ Login wall detected — only public content scraped', 'error');
+    }
+
+    const homeRes = await chrome.scripting.executeScript({ target: { tabId: scoutTabId }, func: scrapeFullPage });
+    const hData = homeRes?.[0]?.result;
+
+    if (hData) {
+      const newItems = getNewDataItems(finalData, hData);
+      if (newItems.length > 0) {
+        addLog(url, '[Photo] Snapping Proof...');
+        await captureWithPhotographer(targetUrl, "Homepage Discovery", newItems, finalData);
+      }
+      mergeData(finalData, hData);
+
+      // ── Update UI after homepage scan so data appears immediately ──
+      saveState();
+      chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
+
+      // Also scan Contact page for hidden emails
+      if (finalData.contactLink && finalData.contactLink !== targetUrl) {
+        addLog(url, '[Scout] Checking Contact page...');
+        await chrome.tabs.update(scoutTabId, { url: finalData.contactLink });
+        await waitForTabComplete(scoutTabId, 10000); await sleep(2000);
+        const cRes = await chrome.scripting.executeScript({ target: { tabId: scoutTabId }, func: scrapeFullPage });
+        const cData = cRes?.[0]?.result;
+        if (cData) {
           mergeData(finalData, cData);
-          await sleep(500);
-          
-          // Screenshot
-          if (finalData.emails.length > 0 || finalData.phone) {
-            await chrome.windows.update(auditWindowId, { focused: true }).catch(()=>{});
-            await sleep(500);
-            try {
-              const img = await chrome.tabs.captureVisibleTab(auditWindowId, { format: 'jpeg', quality: 80 });
-              if (img) finalData.screenshots.push(img);
-            } catch(e) {}
-            await chrome.windows.update(auditWindowId, { focused: false }).catch(()=>{});
-          }
+          saveState();
+          chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
         }
       }
 
-      calculateConfidence(finalData);
-
-    } catch (error) {
-      finalData.technicalReason = 'JS_RENDER_FAILED';
+      if (finalData.teamLink) {
+        addLog(url, '[Scout] Checking Team/LinkedIn...');
+        await chrome.tabs.update(scoutTabId, { url: finalData.teamLink });
+        await waitForTabComplete(scoutTabId, 10000); await sleep(3000);
+        const teamRes = await chrome.scripting.executeScript({ target: { tabId: scoutTabId }, func: scrapeFullPage });
+        const tData = teamRes?.[0]?.result;
+        if (tData) {
+          const tNew = getNewDataItems(finalData, tData);
+          if (tNew.length > 0) await captureWithPhotographer(finalData.teamLink, "Leadership Proof", tNew, finalData);
+          mergeData(finalData, tData);
+          saveState();
+          chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
+        }
+      }
     }
 
-    if (scoutTabId) await chrome.tabs.remove(scoutTabId).catch(()=>{});
+    if (finalData.name) {
+      const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(finalData.name.split('|')[0].trim())}`;
+      addLog(url, '[Scout] Checking Maps...');
+      await chrome.tabs.update(scoutTabId, { url: mapsUrl });
+      await waitForTabComplete(scoutTabId, 15000); await sleep(4000);
+      const mapsRes = await chrome.scripting.executeScript({ target: { tabId: scoutTabId }, func: scrapeMapsData });
+      const mData = mapsRes?.[0]?.result;
+      if (mData) {
+        const mNew = getNewDataItems(finalData, mData);
+        if (mNew.length > 0) await captureWithPhotographer(mapsUrl, "Google Maps Proof", mNew, finalData);
+        mergeData(finalData, mData);
+      }
+    }
 
-    state.results.push(finalData);
-    state.currentIndex++;
+    if (finalData.email) finalData.deliverability = await checkEmailDeliverability(finalData.email);
+    if (!finalData.isWhatsApp && finalData.phone) finalData.isWhatsApp = await verifyWhatsAppDeeply(finalData.phone);
+
+    calculateConfidenceAndBestMatches(finalData);
+
+    if (finalData.emails.length === 0 && finalData.phone === '' && finalData.linkedinLinks.length === 0) {
+      if (!finalData.technicalReason) finalData.technicalReason = 'NO_PUBLIC_CONTACT_DATA';
+    } else if (finalData.emails.length === 0 && finalData.phone === '' && finalData.linkedinLinks.length > 0) {
+      if (!finalData.technicalReason) finalData.technicalReason = 'SOCIAL_ONLY';
+    }
+
     saveState();
-    
-    chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => {});
-    await sleep(2000);
-  }
 
-  if (auditWindowId) {
-    chrome.windows.remove(auditWindowId).catch(()=>{});
-    auditWindowId = null;
+  } catch (e) {
+    finalData.technicalReason = 'TIMEOUT_OR_CRASH';
+    addLog(url, 'Row Failed: ' + e.message, 'error');
+  } finally {
+    if (scoutTabId) try { await chrome.tabs.remove(scoutTabId); } catch (e) { }
+    chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
   }
 }
 
-function mergeData(final, newData) {
-  newData.emails.forEach(e => { if(!final.emails.includes(e)) final.emails.push(e); });
-  if (newData.phone && !final.phone) final.phone = newData.phone;
-  newData.linkedinLinks.forEach(l => { if(!final.linkedinLinks.includes(l)) final.linkedinLinks.push(l); });
-  if (final.linkedinLinks.length > 0) final.bestLinkedIn = final.linkedinLinks[0];
+async function captureWithPhotographer(targetUrl, label, items, finalData) {
+  // Guard: never run on empty/invalid URLs
+  if (!targetUrl || !targetUrl.startsWith('http')) {
+    addLog(targetUrl || 'unknown', '[Photo] Skipped — invalid URL', 'error');
+    return;
+  }
+
+  if (!auditWindowId) {
+    await initializeAuditWindow();
+    if (!auditWindowId) return;
+  }
+
+  // Sequential Lock: Only one snap at a time
+  while (isPhotographerBusy) { await sleep(1000); }
+  isPhotographerBusy = true;
+
+  let photoTabId = null;
+  try {
+    const tab = await safeCreateTab({ windowId: auditWindowId, url: targetUrl, active: true });
+    photoTabId = tab.id;
+
+    await waitForTabComplete(photoTabId, 15000);
+    await sleep(3500);
+
+    // Guard: verify tab loaded a real http/https URL (stricter than before)
+    const tabInfo = await chrome.tabs.get(photoTabId).catch(() => null);
+    if (!tabInfo || !tabInfo.url || !tabInfo.url.startsWith('http')) {
+      addLog(targetUrl, '[Photo] Tab failed to load — skipped', 'error');
+      return;
+    }
+
+    // ── CAPTCHA / Block Detection ──
+    // Use named error handler — if executeScript fails due to restricted URL, skip gracefully
+    const pageCheck = await chrome.scripting.executeScript({
+      target: { tabId: photoTabId },
+      func: () => {
+        const body = (document.body?.innerText || '').toLowerCase();
+        const title = (document.title || '').toLowerCase();
+        const hasCaptcha = body.includes('captcha') || body.includes('verify you are human') ||
+          body.includes('i am not a robot') || title.includes('access denied') ||
+          title.includes('just a moment') || title.includes('ddos') ||
+          !!document.querySelector('iframe[src*="recaptcha"], iframe[src*="hcaptcha"]');
+        const hasContent = (document.body?.children?.length || 0) > 2;
+        return { hasCaptcha, hasContent };
+      }
+    }).catch((err) => {
+      // Cannot access — tab navigated away or restricted host
+      addLog(targetUrl, '[Photo] Page not accessible — skipped', 'error');
+      return null; // null signals: abort this capture
+    });
+
+    if (!pageCheck) {
+      finalData.technicalReason = 'JS_RENDER_FAILED';
+      return;
+    }
+
+    const check = pageCheck?.[0]?.result;
+    if (check?.hasCaptcha || !check?.hasContent) {
+      finalData.technicalReason = 'CAPTCHA_BLOCKED';
+      addLog(targetUrl, '[Photo] CAPTCHA/Block detected — proof skipped', 'error');
+      return;
+    }
+
+    // ── Inject Highlights ──
+    await chrome.scripting.executeScript({
+      target: { tabId: photoTabId },
+      func: highlightOrangeData,
+      args: [items]
+    }).catch(() => { }); // Highlight is best-effort, never crash on failure
+
+    await sleep(1500);
+
+    // ── Focus window so captureVisibleTab works reliably ──
+    await chrome.windows.update(auditWindowId, { focused: true }).catch(() => { });
+    await sleep(500);
+
+    const img = await chrome.tabs.captureVisibleTab(auditWindowId, { format: 'jpeg', quality: 90 })
+      .catch(() => null);
+    if (img && img.length > 1000) {
+      finalData.screenshots.push({ label, img });
+      addLog(targetUrl, '[Photo] ✅ Proof captured!', 'success');
+    } else {
+      addLog(targetUrl, '[Photo] Screenshot was blank — skipped', 'error');
+    }
+  } catch (e) {
+    // Last-resort catch — log but never crash the queue
+    addLog(targetUrl, '[Photo] Skipped: ' + (e.message || 'unknown error'), 'error');
+  } finally {
+    if (photoTabId) try { await chrome.tabs.remove(photoTabId); } catch (e) { }
+    isPhotographerBusy = false;
+  }
 }
 
-// ---- INJECTED SCRIPT ----
-function extractPageData() {
-  const text = document.body.innerText || "";
-  const html = document.body.innerHTML || "";
-  
-  if (text.includes("Cloudflare") && text.includes("Checking your browser")) return { blocked: true };
-  if (text.includes("Please verify you are a human")) return { blocked: true };
 
-  const emails = [];
-  const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;
-  (text.match(emailRegex) || []).forEach(e => { if(e.includes('.')) emails.push(e.toLowerCase()) });
-  (html.match(/mailto:([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi) || []).forEach(m => {
-    emails.push(m.replace('mailto:','').toLowerCase());
+function scrapeFullPage() {
+  try {
+    const res = {
+      emails: [], email: '', phone: '', address: '', linkedinLinks: [],
+      teamLink: '', contactLink: '',
+      social: { facebook: '', instagram: '', twitter: '', youtube: '', tiktok: '', pinterest: '' }
+    };
+    const text = document.body?.innerText || '';
+    const html = document.documentElement?.innerHTML || '';
+    const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+
+    // ── METHOD 1: Full HTML regex scan ──
+    const m1 = html.match(emailRegex) || [];
+
+    // ── METHOD 2: All mailto: href links ──
+    const m2 = Array.from(document.querySelectorAll('a[href^="mailto:"]'))
+      .map(a => a.href.replace('mailto:', '').split('?')[0].trim());
+
+    // ── METHOD 3: data-email / data-cfemail attributes (Cloudflare obfuscation) ──
+    const m3 = [];
+    document.querySelectorAll('[data-email],[data-mail],[data-contact-email]').forEach(el => {
+      const v = el.getAttribute('data-email') || el.getAttribute('data-mail') || el.getAttribute('data-contact-email') || '';
+      if (v && v.includes('@')) m3.push(v.trim());
+    });
+    // Cloudflare cfemail decode
+    document.querySelectorAll('[data-cfemail]').forEach(el => {
+      try {
+        const enc = el.getAttribute('data-cfemail');
+        let dec = '', r = parseInt(enc.substr(0, 2), 16);
+        for (let i = 2; i < enc.length; i += 2) dec += String.fromCharCode(parseInt(enc.substr(i, 2), 16) ^ r);
+        if (dec.includes('@')) m3.push(dec);
+      } catch (e) { }
+    });
+
+    // ── METHOD 4: HTML entity decoding (&#64; and %40 = @) ──
+    const decoded = html.replace(/&#64;|&#x40;|%40|\[at\]|\(at\)/gi, '@').replace(/\[dot\]|\(dot\)/gi, '.');
+    const m4 = decoded.match(emailRegex) || [];
+
+    // ── METHOD 5: JSON-LD / Schema.org structured data ──
+    const m5 = [];
+    document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+      try {
+        const data = JSON.parse(script.innerText);
+        const str = JSON.stringify(data);
+        (str.match(emailRegex) || []).forEach(e => m5.push(e));
+        // Also extract phone + address from schema
+        if (data.telephone && !res.phone) res.phone = String(data.telephone);
+        const addr = data.address || (data[0] && data[0].address);
+        if (addr && !res.address) {
+          if (typeof addr === 'string') res.address = addr;
+          else res.address = [addr.streetAddress, addr.addressLocality, addr.addressRegion, addr.postalCode]
+            .filter(Boolean).join(', ');
+        }
+      } catch (e) { }
+    });
+
+    // ── METHOD 6: Footer deep scan (most contact info lives here) ──
+    const m6 = [];
+    const footer = document.querySelector('footer, [class*="footer"], [id*="footer"], [class*="contact"], [id*="contact"]');
+    if (footer) (footer.innerHTML.match(emailRegex) || []).forEach(e => m6.push(e));
+
+    // ── METHOD 7: Image alt / title / aria-label scan (catches image-based emails) ──
+    const m7 = [];
+    document.querySelectorAll('img').forEach(img => {
+      const txt = [img.alt, img.title, img.getAttribute('aria-label'), img.getAttribute('data-src')].filter(Boolean).join(' ');
+      (txt.match(emailRegex) || []).forEach(e => m7.push(e));
+    });
+    // Also check figcaptions and visible label text near images
+    document.querySelectorAll('figcaption, [class*="caption"], [class*="contact-img"] + *, [class*="email-img"] + *').forEach(el => {
+      ((el.innerText || '').match(emailRegex) || []).forEach(e => m7.push(e));
+    });
+
+    // ── Merge, deduplicate, filter junk ──
+    const allRaw = [...new Set([...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7])];
+    const allEmails = allRaw
+      .filter(e => e.includes('@') && e.split('@')[1]?.includes('.'))
+      .filter(e => !e.match(/\.(png|jpg|jpeg|gif|svg|webp|css|js|woff|ttf|eot|otf|map)$/i))
+      .filter(e => !/(example\.com|domain\.com|yourmail|test@test|sentry\.io|noreply|no-reply|donotreply|wordpress\.com|wixpress|squarespace|@2x\.|schema\.org)/i.test(e));
+    res.emails = allEmails;
+    if (allEmails.length > 0) res.email = allEmails[0];
+
+    // ── Phone: multi-pattern ──
+    if (!res.phone) {
+      const phonePatterns = [
+        /\+92[\s\-]?\d{3}[\s\-]?\d{7}/,                              // Pakistan mobile
+        /0\d{2,3}[\s\-]?\d{7,8}/,                                    // Local 0XXX
+        /\+?1?\s*\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/,            // US/Canada
+        /\+?[\d][\d\s\-\(\)]{8,14}[\d]/,                             // International fallback
+      ];
+      for (const pat of phonePatterns) {
+        const m = text.match(pat);
+        if (m) { res.phone = m[0].trim(); break; }
+      }
+    }
+
+    // ── Address: schema tag or address element ──
+    if (!res.address) {
+      const addrEl = document.querySelector('address, [class*="address"], [id*="address"], [itemtype*="PostalAddress"]');
+      if (addrEl) res.address = addrEl.innerText.replace(/\s+/g, ' ').trim().slice(0, 250);
+    }
+
+    // ── All Social + Navigation links ──
+    Array.from(document.querySelectorAll('a[href]')).forEach(a => {
+      const h = (a.href || '').toLowerCase().trim();
+      const txt = (a.innerText || '').toLowerCase().trim();
+      if (!h || h.startsWith('javascript') || h === '#') return;
+
+      if ((h.includes('linkedin.com/in/') || h.includes('linkedin.com/company/')) && !h.includes('share')) res.linkedinLinks.push(a.href);
+      if (h.includes('facebook.com/') && !h.includes('sharer') && !h.includes('login') && !h.includes('/tr?')) res.social.facebook = res.social.facebook || a.href;
+      if (h.includes('instagram.com/') && !h.includes('login')) res.social.instagram = res.social.instagram || a.href;
+      if ((h.includes('twitter.com/') || h.includes('x.com/')) && !h.includes('intent/') && !h.includes('login')) res.social.twitter = res.social.twitter || a.href;
+      if (h.includes('youtube.com/') && (h.includes('/channel/') || h.includes('/user/') || h.includes('/@') || h.includes('/c/'))) res.social.youtube = res.social.youtube || a.href;
+      if (h.includes('tiktok.com/@')) res.social.tiktok = res.social.tiktok || a.href;
+      if (h.includes('pinterest.com/') && !h.includes('/pin/')) res.social.pinterest = res.social.pinterest || a.href;
+
+      if (!res.teamLink && /\b(team|about|staff|leadership|people|founders?)\b/i.test(txt)) res.teamLink = a.href;
+      if (!res.contactLink && /\b(contact|reach us|get in touch|support|help)\b/i.test(txt)) res.contactLink = a.href;
+    });
+
+    res.linkedinLinks = [...new Set(res.linkedinLinks)];
+    return res;
+  } catch (e) { return {}; }
+}
+
+
+function highlightOrangeData(values) {
+  if (!values || values.length === 0) return;
+  const targets = [];
+  const lowerValues = values.map(v => v ? String(v).toLowerCase() : '');
+
+  // Search links and text
+  Array.from(document.querySelectorAll('a, span, p, div')).forEach(el => {
+    if (el.children.length > 3) return; // Skip big containers
+    const txt = el.innerText ? el.innerText.toLowerCase() : '';
+    const href = (el.tagName === 'A') ? el.href.toLowerCase() : '';
+
+    lowerValues.forEach(val => {
+      if (val && (txt.includes(val) || (href && href.includes(val)))) {
+        if (!targets.includes(el)) targets.push(el);
+      }
+    });
   });
 
-  let phone = "";
-  const pMatch = text.match(/(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/);
-  if (pMatch) phone = pMatch[0];
+  // Apply Professional Forensic Styling
+  targets.forEach((el, idx) => {
+    if (!el) return;
+    el.style.outline = '12px solid #ff9800';
+    el.style.outlineOffset = '4px';
+    el.style.borderRadius = '4px';
+    el.style.position = 'relative';
+    el.style.zIndex = '2147483647';
+    el.style.backgroundColor = 'rgba(255, 152, 0, 0.1)';
 
-  const linkedinLinks = [];
-  document.querySelectorAll('a[href*="linkedin.com/company"]').forEach(a => linkedinLinks.push(a.href));
+    // Add Forensic Tag
+    const tag = document.createElement('div');
+    tag.innerText = '🔍 AUDIT PROOF: DATA FOUND';
+    tag.style.cssText = `
+      position: absolute; top: -35px; left: 0;
+      background: #ff9800; color: #fff;
+      padding: 4px 10px; font-size: 11px; font-weight: 800;
+      border-radius: 4px; white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      z-index: 2147483647; text-transform: uppercase;
+      font-family: sans-serif; letter-spacing: 0.5px;
+    `;
+    el.appendChild(tag);
 
-  return {
-    blocked: false,
-    emails: [...new Set(emails)],
-    phone,
-    linkedinLinks: [...new Set(linkedinLinks)]
-  };
+    if (idx === 0) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+  });
+
+  // No backdrop — it hides highlights on sites with stacking contexts.
+  // The orange glow + scroll is sufficient forensic evidence.
+}
+
+function getNewDataItems(current, source) {
+  const news = [];
+  if (source.email && source.email !== current.email) news.push(source.email);
+  if (source.phone && source.phone !== current.phone) news.push(source.phone);
+  if (source.address && source.address !== current.address) news.push(source.address);
+  if (source.linkedinLinks) {
+    source.linkedinLinks.forEach(l => {
+      let isNew = true;
+      (current.linkedinLinks || []).forEach(cl => { if (cl.includes(l) || l.includes(cl)) isNew = false; });
+      if (isNew) news.push(l);
+    });
+  }
+  return news;
+}
+
+function mergeData(target, source) {
+  if (!source) return;
+  if (!target.email && source.email) target.email = source.email;
+  if (!target.phone && source.phone) target.phone = source.phone;
+  if (!target.address && source.address) target.address = source.address;
+  // Merge all emails array
+  if (source.emails && source.emails.length > 0) {
+    target.emails = [...new Set([...(target.emails || []), ...source.emails])];
+    if (!target.email && target.emails.length > 0) target.email = target.emails[0];
+  }
+  if (source.linkedinLinks && source.linkedinLinks.length > 0) {
+    target.linkedinLinks = [...new Set([...(target.linkedinLinks || []), ...source.linkedinLinks])];
+  }
+  if (source.teamLink && !target.teamLink) target.teamLink = source.teamLink;
+  if (source.contactLink && !target.contactLink) target.contactLink = source.contactLink;
+  // Merge all social platforms
+  if (source.social) {
+    if (!target.social) target.social = {};
+    for (const key of ['facebook', 'instagram', 'twitter', 'youtube', 'tiktok', 'pinterest']) {
+      if (!target.social[key] && source.social[key]) target.social[key] = source.social[key];
+    }
+  }
+}
+
+// NOTE: scrapeFullPage is defined above (line ~295) with full email+mailto detection.
+// The old duplicate has been removed to prevent it from overriding the advanced version.
+
+function scrapeMapsData() {
+  try {
+    const res = { phone: '', address: '' };
+    const pEl = document.querySelector('[data-item-id^="phone:tel:"]');
+    if (pEl) res.phone = pEl.innerText.trim();
+    const aEl = document.querySelector('[data-item-id="address"]');
+    if (aEl) res.address = aEl.innerText.trim();
+    return res;
+  } catch (e) { return {}; }
+}
+
+async function checkEmailDeliverability(email) {
+  try {
+    const domain = email.split('@')[1];
+    const response = await fetch(`https://dns.google/resolve?name=${domain}&type=MX`);
+    const json = await response.json();
+    return (json.Answer && json.Answer.length > 0) ? "Deliverable" : "Undeliverable";
+  } catch (e) { return "Unknown"; }
+}
+
+async function verifyWhatsAppDeeply(phoneNumber) {
+  let cleanNum = phoneNumber.replace(/\D/g, '');
+  if (cleanNum.length < 10) return false;
+  let tabId = null;
+  try {
+    const tab = await safeCreateTab({ url: `https://api.whatsapp.com/send?phone=${cleanNum}`, active: false });
+    tabId = tab.id;
+    await waitForTabComplete(tabId, 10000); await sleep(2000);
+    const res = await chrome.scripting.executeScript({
+      target: { tabId }, func: () => {
+        return document.querySelector('#action-button, a[href*="whatsapp.com/send"]') !== null;
+      }
+    });
+    return res?.[0]?.result === true;
+  } catch (e) { return false; }
+  finally { if (tabId) try { await chrome.tabs.remove(tabId); } catch (e) { } }
+}
+
+function waitForTabComplete(tabId, timeout) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { resolve('timeout'); }, timeout);
+    function listener(id, changeInfo) {
+      if (id === tabId && changeInfo.status === 'complete') {
+        clearTimeout(timer); chrome.tabs.onUpdated.removeListener(listener); resolve('complete');
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function calculateConfidenceAndBestMatches(data) {
+  let score = 0;
+
+  // Rule 1: Choose Best Email
+  if (data.emails && data.emails.length > 0) {
+    let bestEmail = data.emails[0];
+    let emailType = 'General';
+    let highestPriority = 0;
+
+    data.emails.forEach(e => {
+      const em = e.toLowerCase();
+      let priority = 1;
+      let type = 'General';
+
+      if (em.includes('founder') || em.includes('ceo') || em.includes('owner') || em.includes('president')) { priority = 10; type = 'Decision Maker'; }
+      else if (em.includes('sales') || em.includes('partner') || em.includes('hello') || em.includes('contact')) { priority = 5; type = 'Sales/Partnership'; }
+      else if (em.includes('support') || em.includes('info') || em.includes('admin')) { priority = 3; type = 'General'; }
+      else if (!em.includes('info') && !em.includes('support') && !em.includes('contact')) { priority = 4; type = 'Personal/Direct'; } // Likely a direct person's name
+
+      if (priority > highestPriority) {
+        highestPriority = priority;
+        bestEmail = e;
+        emailType = type;
+      }
+    });
+
+    data.bestEmail = bestEmail;
+    data.emailType = emailType;
+    score += (highestPriority * 5); // max 50 points for a good email
+  }
+
+  // Rule 2: Choose Best LinkedIn
+  if (data.linkedinLinks && data.linkedinLinks.length > 0) {
+    let bestLi = data.linkedinLinks[0];
+    data.linkedinLinks.forEach(l => {
+      if (l.includes('company/')) bestLi = l; // Prefer company page over random employee for the top level
+    });
+    data.bestLinkedIn = bestLi;
+    score += 20; // 20 points for having LinkedIn
+  }
+
+  // Rule 3: Phone & WhatsApp
+  if (data.phone) score += 15;
+  if (data.isWhatsApp) score += 15;
+
+  // Final adjustments
+  if (data.deliverability === 'Deliverable') score += 10;
+
+  if (score > 100) score = 100;
+  if (score === 0 && data.technicalReason === '') score = 10; // Found nothing but site loaded
+
+  data.confidenceScore = score;
 }

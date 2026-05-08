@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ScoutLead Extractor</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <title>LeadFlow ELITE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -15,12 +15,24 @@
           <div class="logo-icon-wrap">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
           </div>
-          <span class="logo-text">ScoutLead<br><span>EXTRACTOR</span></span>
+          <span class="logo-text">LeadFlow<br><span>ELITE</span></span>
         </div>
         <div class="nav-tabs">
           <button class="nav-btn active" data-tab="extract">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
             Audit
+          </button>
+          <button class="nav-btn" data-tab="outreach">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"></path><path d="M22 2L15 22 11 13 2 9l20-7z"></path></svg>
+            Outreach
+          </button>
+          <button class="nav-btn" data-tab="history">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            History
+          </button>
+          <button class="nav-btn" data-tab="logs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+            Logs
           </button>
           <button class="nav-btn" data-tab="settings">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -39,74 +51,195 @@
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               <span class="stat-label">Total Rows</span>
             </div>
             <span class="stat-value" id="statLeads">0</span>
           </div>
           <div class="stat-card success">
             <div class="stat-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
               <span class="stat-label">Valid Leads</span>
             </div>
-            <span class="stat-value" id="statValid">0</span>
+            <span class="stat-value" id="statEmails">0</span>
+          </div>
+          <div class="stat-card primary">
+            <div class="stat-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+              <span class="stat-label">WhatsApp</span>
+            </div>
+            <span class="stat-value" id="statWhatsApp">0</span>
           </div>
         </div>
-        
         <div class="status-card" id="liveStatusCard">
           <div class="status-header">
             <div class="pulse-icon"></div>
-            <span class="status-label">Engine Status</span>
+            <span class="status-label">Live Discovery Status</span>
           </div>
           <div class="current-task">
-            <span id="currentTaskUrl" class="task-url">Idle...</span>
+            <span id="currentTaskUrl" class="task-url">Waiting for Audit...</span>
+          </div>
+          <div class="session-info">
+            <small>Deep Sweep Engine: <span style="color:var(--primary)">Active</span></small>
           </div>
         </div>
       </div>
 
+      <!-- ── AUDIT TAB ── -->
       <div id="tab-extract" class="tab-pane active">
         <div class="upload-zone" id="fileDrop">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px; color: var(--primary)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-          <p>Drop Excel File to Start Extraction</p>
+          <div class="drop-ui">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <p>Drop XLSX for <strong>Enterprise Audit</strong></p>
+          </div>
           <input type="file" id="csvFile" accept=".xlsx,.xls,.csv" style="display:none"/>
         </div>
 
+        <div id="fileInfo" class="file-info-bar" style="display:none">
+          <span id="fileName">...</span>
+          <select id="columnSelect" class="styled-select"></select>
+        </div>
+
         <div class="action-bar">
-          <button id="startBtn" class="primary-btn" disabled>Start Extraction</button>
-          <button id="pauseBtn" class="ghost-btn" disabled>Pause</button>
-          <button id="exportBtn" class="success-btn" disabled>Export to Excel (3 Sheets)</button>
-          <button id="clearBtn" class="danger-btn">Clear Data</button>
+          <button id="startBtn" class="primary-btn">Start Audit</button>
+          <button id="stopBtn" class="danger-btn" style="display:none">Stop</button>
+          <div style="display:flex; gap:8px">
+            <button id="exportBtn" class="success-btn" style="display:none">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              Excel
+            </button>
+            <button id="exportVisualBtn" class="primary-btn" style="display:none; background:#8b5cf6">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              Visual Report
+            </button>
+          </div>
+          <button id="clearBtn" class="ghost-btn">Reset</button>
         </div>
 
-        <div class="progress-container" style="display: none;" id="progressWrap">
-          <div class="progress-meta">
-            <span id="progressText">0 / 0 Processed</span>
-            <span id="progressPercent">0%</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="progressBar"></div>
-          </div>
+        <div id="progressSection" class="progress-container" style="display:none">
+          <div class="progress-meta"><span id="progressText">...</span><span id="progressPct">0%</span></div>
+          <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
         </div>
 
-        <div class="results-container" id="resultsBody">
-          <!-- Lead Cards will be injected here -->
+        <div class="results-container" id="auditResultsList">
+          <!-- Audit Cards will be rendered here -->
+          <div class="empty-hint">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" style="margin-bottom:10px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <p>Upload a file and start the audit engine</p>
+          </div>
         </div>
       </div>
 
+      <!-- ── OUTREACH TAB ── -->
+      <div id="tab-outreach" class="tab-pane">
+        <div class="outreach-layout">
+
+          <!-- LEFT: Upload + Template -->
+          <div class="outreach-left">
+            <div class="outreach-section-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>Import Leads</span>
+            </div>
+            <div class="outreach-upload-zone" id="outreachDrop">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff9800" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <p>Drop your Audit Excel / CSV here</p>
+              <span class="outreach-hint">Variables: {{name}} {{company}} {{email}}</span>
+              <input type="file" id="outreachFile" accept=".xlsx,.xls,.csv" style="display:none"/>
+            </div>
+            <div id="outreachFileInfo" style="display:none; margin-bottom:10px">
+              <span id="outreachFileName" class="file-chip"></span>
+            </div>
+
+            <!-- Channel Selector -->
+            <div class="channel-selector">
+              <div class="outreach-section-header" style="margin-bottom:10px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"></path><path d="M22 2L15 22 11 13 2 9l20-7z"></path></svg>
+                <span>Channel</span>
+              </div>
+              <div class="channel-btns">
+                <button class="channel-btn active" data-channel="gmail">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                  <span>Gmail</span>
+                  <span class="ch-count">0</span>
+                </button>
+                <button class="channel-btn" data-channel="linkedin">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                  <span>LinkedIn</span>
+                  <span class="ch-count">0</span>
+                </button>
+                <button class="channel-btn" data-channel="whatsapp">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.016 2.035-.535c.944.514 1.96.788 3.234.788 3.18 0 5.766-2.586 5.767-5.766 0-3.18-2.587-5.753-5.764-5.753zm0 10.455c-1.127 0-2.227-.305-3.183-.881l-.228-.131-1.191.312.318-1.161-.144-.229c-.633-1.006-.967-2.174-.967-3.366.002-3.455 2.812-6.265 6.268-6.265 3.455 0 6.265 2.81 6.265 6.266-.002 3.456-2.812 6.266-6.268 6.266z"/></svg>
+                  <span>WhatsApp</span>
+                  <span class="ch-count">0</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Template Editor -->
+            <div class="outreach-section-header" style="margin:12px 0 8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+              <span>Message Template</span>
+            </div>
+            <input type="text" id="outreachSubject" class="styled-input wide" placeholder="Subject: Re: {{company}} Partnership" style="margin-bottom:8px"/>
+            <textarea id="outreachTemplate" class="styled-textarea" placeholder="Hi {{name}},&#10;&#10;I was reviewing {{company}}'s website and noticed...&#10;&#10;Best regards"></textarea>
+
+            <button id="outreachProcessBtn" class="primary-btn wide-btn" style="margin-top:12px; background: linear-gradient(135deg, #ff9800, #f57c00);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              Process All Leads
+            </button>
+          </div>
+
+          <!-- RIGHT: Lead Cards with Cross -->
+          <div class="outreach-right">
+            <div class="outreach-section-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <span id="outreachLeadCount">0 Recipients</span>
+              <button id="selectAllBtn" class="ghost-btn small" style="margin-left:auto">Select All</button>
+              <button id="deselectAllBtn" class="ghost-btn small">Deselect All</button>
+            </div>
+            <div id="outreachLeadList" class="outreach-lead-list">
+              <div class="empty-outreach">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <p>Upload a file to see leads</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Bar for Outreach -->
+        <div id="outreachProgress" style="display:none; margin-top:16px">
+          <div class="progress-meta"><span id="outreachProgressText">Processing...</span><span id="outreachProgressPct">0%</span></div>
+          <div class="progress-track"><div id="outreachProgressBar" class="progress-fill" style="background: linear-gradient(90deg, #ff9800, #f57c00)"></div></div>
+        </div>
+      </div>
+
+      <!-- ── HISTORY TAB ── -->
+      <div id="tab-history" class="tab-pane">
+        <div class="history-container">
+          <div id="historyList"></div>
+        </div>
+      </div>
+
+      <!-- ── LOGS TAB ── -->
+      <div id="tab-logs" class="tab-pane">
+        <div class="logs-console" id="logsContainer"></div>
+      </div>
+
+      <!-- ── SETTINGS TAB ── -->
       <div id="tab-settings" class="tab-pane">
-        <h2>Configuration</h2>
-        <div style="margin-top: 20px;">
-          <label>Concurrency (Tabs to open at once)</label>
-          <input type="number" id="concurrencyInput" value="3" min="1" max="10" style="margin-top:5px; padding:8px; border-radius:8px; border:1px solid #e2e8f0; width:100px;"/>
+        <div class="settings-card">
+          <h3>Audit Configuration</h3>
+          <div class="setting-item"><label>Turbo Mode</label><select id="concurrencyInput" class="styled-select"><option value="1">1 Task (Deep Scan)</option><option value="3">3 Tasks (Fast)</option></select></div>
+          <div class="setting-item-stack"><label>Google Sheets Webhook</label><input type="text" id="sheetWebhookUrl" class="styled-input wide"></div>
         </div>
       </div>
-
     </main>
-  </div>
-  
-  <div id="screenshotModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <span class="close-modal">&times;</span>
-      <img id="screenshotImage" src="" style="max-width: 100%; max-height: 80vh; border-radius: 8px;"/>
+
+    <div id="screenshotModal" class="modal" style="display:none">
+      <div class="modal-content"><span class="close-modal">&times;</span><img id="modalImg" src="" style="width:100%"></div>
     </div>
+
+    <footer class="status-footer"><span id="statusText">Elite Audit Ready</span></footer>
   </div>
 
   <script src="libs/xlsx.full.min.js"></script>
