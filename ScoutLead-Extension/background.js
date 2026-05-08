@@ -16,7 +16,11 @@ let auditWindowId = null;
 let isPhotographerBusy = false;
 
 chrome.storage.local.get(['savedState'], (data) => {
-  if (data.savedState) {
+  if (chrome.runtime.lastError) {
+    console.error(chrome.runtime.lastError);
+    return;
+  }
+  if (data && data.savedState) {
     Object.assign(state, data.savedState);
     state.isRunning = false;
   }
