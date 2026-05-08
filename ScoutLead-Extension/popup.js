@@ -207,12 +207,32 @@ function renderAuditResults(results) {
       </div>
       <div class="audit-card-body">
         <div class="audit-info-grid">
-          <div class="audit-info-item"><span class="audit-label">Best Email</span><span class="audit-value">${res.bestEmail || res.email || '<span class="text-muted">Not Found</span>'}</span></div>
-          <div class="audit-info-item"><span class="audit-label">Email Type</span><span class="audit-value">${res.emailType || 'N/A'}</span></div>
-          <div class="audit-info-item"><span class="audit-label">Phone</span><span class="audit-value">${res.phone || '<span class="text-muted">N/A</span>'}</span></div>
-          <div class="audit-info-item"><span class="audit-label">Best LinkedIn</span><span class="audit-value truncate"><a href="${res.bestLinkedIn || (res.linkedinLinks && res.linkedinLinks[0]) || '#'}" target="_blank">${res.bestLinkedIn || (res.linkedinLinks && res.linkedinLinks[0]) ? 'View Profile' : '<span class="text-muted">N/A</span>'}</a></span></div>
-          <div class="audit-info-item"><span class="audit-label">Address</span><span class="audit-value truncate">${esc(res.address || 'N/A')}</span></div>
-          <div class="audit-info-item"><span class="audit-label">Confidence</span><span class="audit-value" style="color: ${res.confidenceScore > 50 ? 'var(--success)' : 'var(--warning)'}; font-weight: 800;">${res.confidenceScore || 0}%</span></div>
+          <div class="audit-info-item" style="grid-column: span 2;">
+            <span class="audit-label">Emails (${(res.emails||[]).length})</span>
+            <div class="audit-value" style="max-height: 50px; overflow-y: auto; font-size: 11px; line-height: 1.4; white-space: normal;">
+              ${(res.emails||[]).length > 0 ? res.emails.map(e => `<div>${e}</div>`).join('') : '<span class="text-muted">Not Found</span>'}
+            </div>
+          </div>
+          <div class="audit-info-item" style="grid-column: span 2;">
+            <span class="audit-label">LinkedIn Profiles (${(res.linkedinLinks||[]).length})</span>
+            <div class="audit-value" style="max-height: 50px; overflow-y: auto; font-size: 11px; line-height: 1.4; white-space: normal;">
+              ${(res.linkedinLinks||[]).length > 0 ? res.linkedinLinks.map(l => `<div><a href="${l}" target="_blank" style="color:var(--primary);text-decoration:none;">${l.replace(/https?:\/\/(www\.)?linkedin\.com\//, '')}</a></div>`).join('') : '<span class="text-muted">Not Found</span>'}
+            </div>
+          </div>
+          <div class="audit-info-item" style="grid-column: span 2;">
+            <span class="audit-label">Phones (${(res.phones||[]).length})</span>
+            <div class="audit-value" style="max-height: 40px; overflow-y: auto; font-size: 11px; line-height: 1.4; white-space: normal;">
+              ${(res.phones||[]).length > 0 ? res.phones.map(p => `<div>${p}</div>`).join('') : '<span class="text-muted">Not Found</span>'}
+            </div>
+          </div>
+          <div class="audit-info-item" style="grid-column: span 2;">
+            <span class="audit-label">Address</span>
+            <div class="audit-value truncate" title="${esc(res.address || 'N/A')}">${esc(res.address || 'N/A')}</div>
+          </div>
+          <div class="audit-info-item" style="grid-column: span 2;">
+            <span class="audit-label">Confidence</span>
+            <span class="audit-value" style="color: ${res.confidenceScore > 50 ? 'var(--success)' : 'var(--warning)'}; font-weight: 800;">${res.confidenceScore || 0}%</span>
+          </div>
         </div>
       </div>
       <div class="audit-card-footer">
@@ -339,10 +359,10 @@ exportVisualBtn.onclick = () => {
               </div>
             </div>
             <div class="card-body">
-              <div class="info-item"><span class="label">Email</span><span class="value">${r.email || 'N/A'}</span></div>
-              <div class="info-item"><span class="label">Phone</span><span class="value">${r.phone || 'N/A'}</span></div>
-              <div class="info-item"><span class="label">LinkedIn</span><span class="value">${r.linkedinLinks ? r.linkedinLinks.length : 0} Profile(s)</span></div>
-              <div class="info-item"><span class="label">Address</span><span class="value">${r.address || 'N/A'}</span></div>
+              <div class="info-item" style="grid-column: span 2;"><span class="label">Emails (${(r.emails||[]).length})</span><div class="value" style="white-space:normal; max-height:80px; overflow-y:auto; line-height:1.4;">${(r.emails||[]).length > 0 ? (r.emails||[]).map(e=>`<div>${e}</div>`).join('') : 'N/A'}</div></div>
+              <div class="info-item" style="grid-column: span 2;"><span class="label">LinkedIn Profiles (${(r.linkedinLinks||[]).length})</span><div class="value" style="white-space:normal; max-height:80px; overflow-y:auto; line-height:1.4;">${(r.linkedinLinks||[]).length > 0 ? (r.linkedinLinks||[]).map(l=>`<div><a href="${l}" target="_blank" style="color:#2563eb;text-decoration:none;">${l.replace(/https?:\/\/(www\.)?linkedin\.com\//, '')}</a></div>`).join('') : 'N/A'}</div></div>
+              <div class="info-item"><span class="label">Phones (${(r.phones||[]).length})</span><div class="value" style="white-space:normal; max-height:60px; overflow-y:auto; line-height:1.4;">${(r.phones||[]).length > 0 ? (r.phones||[]).map(p=>`<div>${p}</div>`).join('') : 'N/A'}</div></div>
+              <div class="info-item"><span class="label">Address</span><div class="value" style="white-space:normal;">${r.address || 'N/A'}</div></div>
             </div>
             <div class="card-footer">
               <div class="socials">

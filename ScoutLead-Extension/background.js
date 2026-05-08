@@ -445,7 +445,8 @@ function scrapeFullPage() {
     const allEmails = allRaw
       .filter(e => e.includes('@') && e.split('@')[1]?.includes('.'))
       .filter(e => !e.match(/\.(png|jpg|jpeg|gif|svg|webp|css|js|woff|ttf|eot|otf|map)$/i))
-      .filter(e => !/(example\.com|domain\.com|yourmail|test@test|sentry\.io|noreply|no-reply|donotreply|wordpress\.com|wixpress|squarespace|@2x\.|schema\.org)/i.test(e));
+      .filter(e => !/(example\.com|domain\.com|yourmail|test@test|sentry\.io|noreply|no-reply|donotreply|wordpress\.com|wixpress|squarespace|@2x\.|schema\.org)/i.test(e))
+      .filter(e => e.length < 60);
     res.emails = allEmails;
     if (allEmails.length > 0) res.email = allEmails[0];
 
