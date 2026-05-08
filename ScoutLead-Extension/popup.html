@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ScoutLead Extractor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="dashboard">
+    <aside class="hover-sidebar">
+      <div class="sidebar-content">
+        <div class="logo">
+          <div class="logo-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          </div>
+          <span class="logo-text">ScoutLead<br><span>EXTRACTOR</span></span>
+        </div>
+        <div class="nav-tabs">
+          <button class="nav-btn active" data-tab="extract">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Audit
+          </button>
+          <button class="nav-btn" data-tab="settings">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Config
+          </button>
+        </div>
+        <div style="flex:1"></div>
+        <button id="fullscreenBtn" class="fullscreen-btn" title="Open Full Screen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+        </button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="top-row">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-label">Total Rows</span>
+            </div>
+            <span class="stat-value" id="statLeads">0</span>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-header">
+              <span class="stat-label">Valid Leads</span>
+            </div>
+            <span class="stat-value" id="statValid">0</span>
+          </div>
+        </div>
+        
+        <div class="status-card" id="liveStatusCard">
+          <div class="status-header">
+            <div class="pulse-icon"></div>
+            <span class="status-label">Engine Status</span>
+          </div>
+          <div class="current-task">
+            <span id="currentTaskUrl" class="task-url">Idle...</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-extract" class="tab-pane active">
+        <div class="upload-zone" id="fileDrop">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px; color: var(--primary)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <p>Drop Excel File to Start Extraction</p>
+          <input type="file" id="csvFile" accept=".xlsx,.xls,.csv" style="display:none"/>
+        </div>
+
+        <div class="action-bar">
+          <button id="startBtn" class="primary-btn" disabled>Start Extraction</button>
+          <button id="pauseBtn" class="ghost-btn" disabled>Pause</button>
+          <button id="exportBtn" class="success-btn" disabled>Export to Excel (3 Sheets)</button>
+          <button id="clearBtn" class="danger-btn">Clear Data</button>
+        </div>
+
+        <div class="progress-container" style="display: none;" id="progressWrap">
+          <div class="progress-meta">
+            <span id="progressText">0 / 0 Processed</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressBar"></div>
+          </div>
+        </div>
+
+        <div class="results-container" id="resultsBody">
+          <!-- Lead Cards will be injected here -->
+        </div>
+      </div>
+
+      <div id="tab-settings" class="tab-pane">
+        <h2>Configuration</h2>
+        <div style="margin-top: 20px;">
+          <label>Concurrency (Tabs to open at once)</label>
+          <input type="number" id="concurrencyInput" value="3" min="1" max="10" style="margin-top:5px; padding:8px; border-radius:8px; border:1px solid #e2e8f0; width:100px;"/>
+        </div>
+      </div>
+
+    </main>
+  </div>
+  
+  <div id="screenshotModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <img id="screenshotImage" src="" style="max-width: 100%; max-height: 80vh; border-radius: 8px;"/>
+    </div>
+  </div>
+
+  <script src="libs/xlsx.full.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
