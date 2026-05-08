@@ -80,10 +80,17 @@ async function handleFileUpload(e) {
     for (let j = 0; j < row.length; j++) {
       const cell = String(row[j]).trim();
       if (cell.includes('.') && !cell.includes('@') && cell.length > 4) {
-        let u = cell;
-        if (!u.startsWith('http')) u = 'https://' + u;
-        urls.push(u);
-        break; 
+        const httpMatch = cell.match(/(https?:\/\/[^\s]+)/);
+        if (httpMatch) {
+          urls.push(httpMatch[1]);
+          break;
+        } else {
+          const domainMatch = cell.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+          if (domainMatch && !domainMatch[1].includes('@')) {
+            urls.push('https://' + domainMatch[1]);
+            break;
+          }
+        }
       }
     }
   }
