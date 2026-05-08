@@ -263,6 +263,11 @@ async function turboForensics(url, companyName) {
         const cRes = await chrome.scripting.executeScript({ target: { tabId: scoutTabId }, func: scrapeFullPage });
         const cData = cRes?.[0]?.result;
         if (cData) {
+          const cNew = getNewDataItems(finalData, cData);
+          if (cNew.length > 0) {
+            addLog(url, '[Photo] Snapping Contact Proof...');
+            await captureWithPhotographer(finalData.contactLink, "Contact Page Proof", cNew, finalData);
+          }
           mergeData(finalData, cData);
           saveState();
           chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
@@ -528,7 +533,7 @@ function scrapeFullPage() {
       const txt = (a.innerText || '').toLowerCase().trim();
       if (!h || h.startsWith('javascript') || h === '#') return;
 
-      if ((h.includes('linkedin.com/in/') || h.includes('linkedin.com/company/')) && !h.includes('share')) res.linkedinLinks.push(a.href);
+      if (h.includes('linkedin.com/') && !h.includes('/share') && !h.includes('/jobs') && !h.includes('/post') && !h.includes('/feed') && !h.includes('linkedin.com/company/linkedin')) res.linkedinLinks.push(a.href);
       if (h.includes('facebook.com/') && !h.includes('sharer') && !h.includes('login') && !h.includes('/tr?')) res.social.facebook = res.social.facebook || a.href;
       if (h.includes('instagram.com/') && !h.includes('login')) res.social.instagram = res.social.instagram || a.href;
       if ((h.includes('twitter.com/') || h.includes('x.com/')) && !h.includes('intent/') && !h.includes('login')) res.social.twitter = res.social.twitter || a.href;
