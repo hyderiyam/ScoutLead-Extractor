@@ -206,7 +206,10 @@ async function turboForensics(url, companyName) {
     saveState();
     chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
 
-    const scoutTab = await safeCreateTab({ url: targetUrl, active: false });
+    if (!auditWindowId) {
+      await initializeAuditWindow();
+    }
+    const scoutTab = await safeCreateTab({ windowId: auditWindowId, url: targetUrl, active: false });
     scoutTabId = scoutTab.id;
 
     await waitForTabComplete(scoutTabId, 15000); await sleep(3000);
@@ -329,9 +332,14 @@ async function captureWithPhotographer(targetUrl, label, items, finalData) {
     if (!auditWindowId) return;
   }
 
-  // Sequential Lock: Only one snap at a time
-  while (isPhotographerBusy) { await sleep(1000); }
-  isPhotographerBusy = true;
+  // Sequential Lock: Only one snap at a time (Race-Condition Safe)
+  while (true) {
+    if (!isPhotographerBusy) {
+      isPhotographerBusy = true;
+      break;
+    }
+    await sleep(300);
+  }
 
   let photoTabId = null;
   try {
