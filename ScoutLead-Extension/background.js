@@ -137,7 +137,7 @@ async function initializeAuditWindow() {
     }
     const win = await chrome.windows.create({
       url: 'about:blank',
-      type: 'popup',
+      type: 'normal',
       width: 1200,
       height: 900,
       left: 0,
@@ -247,7 +247,7 @@ async function turboForensics(url, companyName) {
       const newItems = getNewDataItems(finalData, hData);
       if (newItems.length > 0) {
         addLog(url, '[Photo] Snapping Proof...');
-        await captureWithPhotographer(targetUrl, "Homepage Discovery", newItems, finalData);
+        await captureWithPhotographer(scoutTabId, targetUrl, "Homepage Discovery", newItems, finalData);
       }
       mergeData(finalData, hData);
 
@@ -266,7 +266,7 @@ async function turboForensics(url, companyName) {
           const cNew = getNewDataItems(finalData, cData);
           if (cNew.length > 0) {
             addLog(url, '[Photo] Snapping Contact Proof...');
-            await captureWithPhotographer(finalData.contactLink, "Contact Page Proof", cNew, finalData);
+            await captureWithPhotographer(scoutTabId, finalData.contactLink, "Contact Page Proof", cNew, finalData);
           }
           mergeData(finalData, cData);
           saveState();
@@ -282,7 +282,7 @@ async function turboForensics(url, companyName) {
         const tData = teamRes?.[0]?.result;
         if (tData) {
           const tNew = getNewDataItems(finalData, tData);
-          if (tNew.length > 0) await captureWithPhotographer(finalData.teamLink, "Leadership Proof", tNew, finalData);
+          if (tNew.length > 0) await captureWithPhotographer(scoutTabId, finalData.teamLink, "Leadership Proof", tNew, finalData);
           mergeData(finalData, tData);
           saveState();
           chrome.runtime.sendMessage({ action: 'updateUI', state }).catch(() => { });
@@ -299,7 +299,7 @@ async function turboForensics(url, companyName) {
       const mData = mapsRes?.[0]?.result;
       if (mData) {
         const mNew = getNewDataItems(finalData, mData);
-        if (mNew.length > 0) await captureWithPhotographer(mapsUrl, "Google Maps Proof", mNew, finalData);
+        if (mNew.length > 0) await captureWithPhotographer(scoutTabId, mapsUrl, "Google Maps Proof", mNew, finalData);
         mergeData(finalData, mData);
       }
     }
@@ -326,84 +326,31 @@ async function turboForensics(url, companyName) {
   }
 }
 
-async function captureWithPhotographer(targetUrl, label, items, finalData) {
-  // Guard: never run on empty/invalid URLs
-  if (!targetUrl || !targetUrl.startsWith('http')) {
-    addLog(targetUrl || 'unknown', '[Photo] Skipped — invalid URL', 'error');
-    return;
-  }
+async function captureWithPhotographer(tabId, targetUrl, label, items, finalData) {
+  if (!tabId || !targetUrl || !targetUrl.startsWith('http')) return;
 
   if (!auditWindowId) {
     await initializeAuditWindow();
     if (!auditWindowId) return;
   }
 
-  // Sequential Lock: Only one snap at a time
   while (isPhotographerBusy) { await sleep(1000); }
   isPhotographerBusy = true;
 
-  let photoTabId = null;
   try {
-    const tab = await safeCreateTab({ windowId: auditWindowId, url: targetUrl, active: true });
-    photoTabId = tab.id;
+    await chrome.windows.update(auditWindowId, { focused: true, state: 'normal' }).catch(() => { });
+    await chrome.tabs.update(tabId, { active: true }).catch(() => { });
 
-    await waitForTabComplete(photoTabId, 15000);
-    await sleep(3500);
-
-    // Guard: verify tab loaded a real http/https URL (stricter than before)
-    const tabInfo = await chrome.tabs.get(photoTabId).catch(() => null);
-    if (!tabInfo || !tabInfo.url || !tabInfo.url.startsWith('http')) {
-      addLog(targetUrl, '[Photo] Tab failed to load — skipped', 'error');
-      return;
-    }
-
-    // ── CAPTCHA / Block Detection ──
-    // Use named error handler — if executeScript fails due to restricted URL, skip gracefully
-    const pageCheck = await chrome.scripting.executeScript({
-      target: { tabId: photoTabId },
-      func: () => {
-        const body = (document.body?.innerText || '').toLowerCase();
-        const title = (document.title || '').toLowerCase();
-        const hasCaptcha = body.includes('captcha') || body.includes('verify you are human') ||
-          body.includes('i am not a robot') || title.includes('access denied') ||
-          title.includes('just a moment') || title.includes('ddos') ||
-          !!document.querySelector('iframe[src*="recaptcha"], iframe[src*="hcaptcha"]');
-        const hasContent = (document.body?.innerText?.length || 0) > 50;
-        return { hasCaptcha, hasContent };
-      }
-    }).catch((err) => {
-      // Cannot access — tab navigated away or restricted host
-      addLog(targetUrl, '[Photo] Page not accessible — skipped', 'error');
-      return null; // null signals: abort this capture
-    });
-
-    if (!pageCheck) {
-      finalData.technicalReason = 'JS_RENDER_FAILED';
-      return;
-    }
-
-    const check = pageCheck?.[0]?.result;
-    if (check?.hasCaptcha || !check?.hasContent) {
-      finalData.technicalReason = 'CAPTCHA_BLOCKED';
-      addLog(targetUrl, '[Photo] CAPTCHA/Block detected — proof skipped', 'error');
-      return;
-    }
-
-    // ── Inject Highlights ──
     await chrome.scripting.executeScript({
-      target: { tabId: photoTabId },
+      target: { tabId: tabId },
       func: highlightOrangeData,
       args: [items]
-    }).catch(() => { }); // Highlight is best-effort, never crash on failure
+    }).catch(() => { });
 
     await sleep(1500);
 
-    // ── Focus window so captureVisibleTab works reliably ──
-    await chrome.windows.update(auditWindowId, { focused: true }).catch(() => { });
-    await sleep(500);
-
-    const img = await chrome.tabs.captureVisibleTab(auditWindowId, { format: 'jpeg', quality: 90 })
-      .catch(() => null);
+    const img = await chrome.tabs.captureVisibleTab(auditWindowId, { format: 'jpeg', quality: 90 }).catch(() => null);
+    
     if (img && img.length > 1000) {
       finalData.screenshots.push({ label, img });
       addLog(targetUrl, '[Photo] ✅ Proof captured!', 'success');
@@ -411,10 +358,8 @@ async function captureWithPhotographer(targetUrl, label, items, finalData) {
       addLog(targetUrl, '[Photo] Screenshot was blank — skipped', 'error');
     }
   } catch (e) {
-    // Last-resort catch — log but never crash the queue
     addLog(targetUrl, '[Photo] Skipped: ' + (e.message || 'unknown error'), 'error');
   } finally {
-    if (photoTabId) try { await chrome.tabs.remove(photoTabId); } catch (e) { }
     isPhotographerBusy = false;
   }
 }
