@@ -666,15 +666,38 @@ async function verifyWhatsAppDeeply(phoneNumber) {
   if (cleanNum.length < 10) return false;
   let tabId = null;
   try {
-    const tab = await safeCreateTab({ url: `https://api.whatsapp.com/send?phone=${cleanNum}`, active: false });
+    // Target Web WhatsApp for TRUE verification (Requires login)
+    const tab = await safeCreateTab({ url: `https://web.whatsapp.com/send?phone=${cleanNum}`, active: false });
     tabId = tab.id;
-    await waitForTabComplete(tabId, 10000); await sleep(2000);
-    const res = await chrome.scripting.executeScript({
-      target: { tabId }, func: () => {
-        return document.querySelector('#action-button, a[href*="whatsapp.com/send"]') !== null;
-      }
-    });
-    return res?.[0]?.result === true;
+    
+    // Heavy SPA polling logic
+    for (let i = 0; i < 25; i++) {
+      await sleep(1000);
+      try {
+        const res = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => {
+            const text = document.body.innerText;
+            // Detect Invalid Number Modal
+            if (text.includes('invalid') || text.includes('Phone number shared via url is invalid')) return 'INVALID';
+            // Detect QR Code (User logged out)
+            if (document.querySelector('canvas') || text.includes('To use WhatsApp on your computer')) return 'AUTH_REQUIRED';
+            // Detect Chat Load Success
+            if (document.querySelector('div[title="Type a message"]') || document.querySelector('#main')) return 'VALID';
+            return 'LOADING';
+          }
+        });
+        
+        const state = res?.[0]?.result;
+        if (state === 'VALID') return true;
+        if (state === 'INVALID') return false;
+        if (state === 'AUTH_REQUIRED') {
+           console.warn('ScoutLead: WhatsApp Web is not logged in.');
+           return false;
+        }
+      } catch (err) { /* Scripting might fail if tab is too early */ }
+    }
+    return false;
   } catch (e) { return false; }
   finally { if (tabId) try { await chrome.tabs.remove(tabId); } catch (e) { } }
 }
