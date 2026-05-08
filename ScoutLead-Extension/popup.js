@@ -438,10 +438,18 @@ function processRows(rows, name) {
     const col = parseInt(columnSelect.value);
     parsedUrls = rows.slice(1).map(r => {
       const cellText = (r[col]||'').toString().trim();
+      
+      let namePart = '';
+      if (cellText.includes('->')) namePart = cellText.split('->')[0].trim() + ' -> ';
+      else if (cellText.includes('=>')) namePart = cellText.split('=>')[0].trim() + ' -> ';
+      else if (cellText.includes('→')) namePart = cellText.split('→')[0].trim() + ' -> ';
+
       const httpMatch = cellText.match(/(https?:\/\/[^\s]+)/);
-      if (httpMatch) return httpMatch[1];
+      if (httpMatch) return namePart + httpMatch[1];
+      
       const domainMatch = cellText.match(/([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-      if (domainMatch && !domainMatch[1].includes('@')) return 'https://' + domainMatch[1];
+      if (domainMatch && !domainMatch[1].includes('@')) return namePart + 'https://' + domainMatch[1];
+      
       return '';
     }).filter(u => u.includes('http'));
     statusText.textContent = `${parsedUrls.length} links loaded.`;
