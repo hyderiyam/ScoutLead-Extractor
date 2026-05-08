@@ -7,9 +7,9 @@ function App() {
         <div className="logo">
           LeadFlow<span>ELITE</span>
         </div>
-        <button className="nav-btn" onClick={() => alert('Install Extension directly from the Chrome Web Store!')}>
-          Add to Chrome — Free
-        </button>
+        <a className="nav-btn" href="/ScoutLead-Extension.zip" download style={{textDecoration: 'none', display: 'inline-block'}}>
+          Download Extension (.zip)
+        </a>
       </nav>
 
       <main className="hero">
@@ -23,7 +23,7 @@ function App() {
         </p>
         
         <div className="cta-group">
-          <a href="#" className="cta-primary" onClick={(e) => { e.preventDefault(); alert('Redirecting to Chrome Web Store...'); }}>
+          <a href="/ScoutLead-Extension.zip" download className="cta-primary">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
