@@ -459,7 +459,10 @@ function scrapeFullPage() {
     ];
     for (const pat of phonePatterns) {
       const matches = text.match(pat);
-      if (matches) matches.forEach(m => allPhones.push(m.trim()));
+      if (matches) matches.forEach(m => {
+        const clean = m.replace(/[^\d\+\-\(\)\.\s]/g, '').trim();
+        if (clean) allPhones.push(clean);
+      });
     }
     // Deduplicate
     const uniquePhonesMap = {};
