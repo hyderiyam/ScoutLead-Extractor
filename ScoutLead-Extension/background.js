@@ -368,7 +368,7 @@ async function captureWithPhotographer(targetUrl, label, items, finalData) {
           body.includes('i am not a robot') || title.includes('access denied') ||
           title.includes('just a moment') || title.includes('ddos') ||
           !!document.querySelector('iframe[src*="recaptcha"], iframe[src*="hcaptcha"]');
-        const hasContent = (document.body?.children?.length || 0) > 2;
+        const hasContent = (document.body?.innerText?.length || 0) > 50;
         return { hasCaptcha, hasContent };
       }
     }).catch((err) => {
