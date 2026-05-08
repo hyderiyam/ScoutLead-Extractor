@@ -554,50 +554,72 @@ function scrapeFullPage() {
 function highlightOrangeData(values) {
   if (!values || values.length === 0) return;
   const targets = [];
-  const lowerValues = values.map(v => v ? String(v).toLowerCase() : '');
+  const lowerValues = values.map(v => v ? String(v).toLowerCase().trim() : '');
 
   // Search links and text
-  Array.from(document.querySelectorAll('a, span, p, div')).forEach(el => {
-    if (el.children.length > 3) return; // Skip big containers
+  Array.from(document.querySelectorAll('a, span, p, h1, h2, h3, h4, h5, h6, li, td, th')).forEach(el => {
+    if (el.children.length > 2) return; 
+    
     const txt = el.innerText ? el.innerText.toLowerCase() : '';
     const href = (el.tagName === 'A') ? el.href.toLowerCase() : '';
 
     lowerValues.forEach(val => {
-      if (val && (txt.includes(val) || (href && href.includes(val)))) {
-        if (!targets.includes(el)) targets.push(el);
+      if (val && val.length > 2) {
+        if (txt.includes(val) || (href && href.includes(val))) {
+          targets.push(el);
+        }
       }
     });
   });
 
+  // Filter targets to only keep the deepest elements (avoid highlighting giant parent divs)
+  const finalTargets = targets.filter(el => {
+    for (const child of targets) {
+      if (child !== el && el.contains(child)) return false;
+    }
+    return true;
+  });
+
   // Apply Professional Forensic Styling
-  targets.forEach((el, idx) => {
+  finalTargets.forEach((el, idx) => {
     if (!el) return;
-    el.style.outline = '12px solid #ff9800';
+    el.style.outline = '6px solid #e11d48'; // Bright Red
     el.style.outlineOffset = '4px';
     el.style.borderRadius = '4px';
     el.style.position = 'relative';
     el.style.zIndex = '2147483647';
-    el.style.backgroundColor = 'rgba(255, 152, 0, 0.1)';
+    el.style.backgroundColor = 'rgba(225, 29, 72, 0.2)';
 
     // Add Forensic Tag
     const tag = document.createElement('div');
-    tag.innerText = '🔍 AUDIT PROOF: DATA FOUND';
+    tag.innerText = '🎯 DATA FOUND';
     tag.style.cssText = `
-      position: absolute; top: -35px; left: 0;
-      background: #ff9800; color: #fff;
-      padding: 4px 10px; font-size: 11px; font-weight: 800;
-      border-radius: 4px; white-space: nowrap;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+      background: #e11d48; color: #fff;
+      padding: 6px 12px; font-size: 14px; font-weight: 900;
+      border-radius: 6px; white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
       z-index: 2147483647; text-transform: uppercase;
-      font-family: sans-serif; letter-spacing: 0.5px;
+      font-family: system-ui, sans-serif; letter-spacing: 1px;
     `;
+    
+    // Create an arrow pointing down
+    const arrow = document.createElement('div');
+    arrow.style.cssText = `
+      position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 8px solid #e11d48;
+    `;
+    tag.appendChild(arrow);
     el.appendChild(tag);
 
-    if (idx === 0) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+    // Scroll to the first match instantly
+    if (idx === 0) {
+      el.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }
   });
-
-  // No backdrop — it hides highlights on sites with stacking contexts.
-  // The orange glow + scroll is sufficient forensic evidence.
 }
 
 function getNewDataItems(current, source) {
