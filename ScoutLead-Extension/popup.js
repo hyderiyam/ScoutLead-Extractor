@@ -198,6 +198,7 @@ function renderAuditResults(results) {
           <div class="audit-biz-site">${esc(res.website || res.url)}</div>
         </div>
         <div class="audit-status-badges">
+          ${res.technicalReason ? `<span class="status-badge status-warning" style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5;">${esc(res.technicalReason)}</span>` : ''}
           <span class="status-badge ${res.deliverability === 'Deliverable' ? 'status-success' : 'status-warning'}">
             ${res.deliverability || 'Pending'}
           </span>
