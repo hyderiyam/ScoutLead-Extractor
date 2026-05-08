@@ -7,7 +7,7 @@ function App() {
         <div className="logo">
           LeadFlow<span>ELITE</span>
         </div>
-        <a className="nav-btn" href="/ScoutLead-Extension.zip" download style={{textDecoration: 'none', display: 'inline-block'}}>
+        <a className="nav-btn" href="/ScoutLead-Extension.zip" download="ScoutLead-Extension.zip" style={{textDecoration: 'none', display: 'inline-block'}}>
           Download Extension (.zip)
         </a>
       </nav>
@@ -23,7 +23,7 @@ function App() {
         </p>
         
         <div className="cta-group">
-          <a href="/ScoutLead-Extension.zip" download className="cta-primary">
+          <a href="/ScoutLead-Extension.zip" download="ScoutLead-Extension.zip" className="cta-primary">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
