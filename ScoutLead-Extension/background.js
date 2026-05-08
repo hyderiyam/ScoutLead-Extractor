@@ -557,7 +557,7 @@ function highlightOrangeData(values) {
   const lowerValues = values.map(v => v ? String(v).toLowerCase().trim() : '');
 
   // Search links and text
-  Array.from(document.querySelectorAll('a, span, p, h1, h2, h3, h4, h5, h6, li, td, th')).forEach(el => {
+  Array.from(document.querySelectorAll('a, span, p, div, h1, h2, h3, h4, h5, h6, li, td, th')).forEach(el => {
     if (el.children.length > 2) return; 
     
     const txt = el.innerText ? el.innerText.toLowerCase() : '';
