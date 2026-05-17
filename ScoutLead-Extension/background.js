@@ -73,29 +73,78 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse(state);
   }
   else if (msg.action === 'startOutreachCampaign') {
-    processOutreachCampaign(msg.leads, msg.template, msg.subject, msg.channel);
+    processOutreachCampaign(msg.leads, msg.template, msg.subject, msg.channel, {
+      totalAccounts: msg.totalAccounts || 4,
+      startAccountIdx: msg.startAccountIdx || 0,
+      delayMin: msg.delayMin || 30000,
+      delayMax: msg.delayMax || 60000
+    });
     sendResponse({ status: 'started' });
   }
 });
 
 // ── Outreach Campaign Logic ──────────────────────────────
 
-async function processOutreachCampaign(leads, template, subject, channel) {
+async function processOutreachCampaign(leads, template, subject, channel, opts = {}) {
+  const { totalAccounts = 4, startAccountIdx = 0, delayMin = 30000, delayMax = 60000 } = opts;
+  let accountRotation = 0;
+
   for (let i = 0; i < leads.length; i++) {
     const lead = leads[i];
     const pct = Math.round(((i + 1) / leads.length) * 100);
 
     const msg = template
-      .replace(/{{name}}/g, lead.name)
-      .replace(/{{company}}/g, lead.company)
-      .replace(/{{email}}/g, lead.email);
+      .replace(/{{name}}/g, lead.name || '')
+      .replace(/{{company}}/g, lead.company || '')
+      .replace(/{{email}}/g, lead.email || '')
+      .replace(/{{website}}/g, lead.website || '');
 
     const sub = subject
-      .replace(/{{company}}/g, lead.company)
-      .replace(/{{name}}/g, lead.name);
+      .replace(/{{company}}/g, lead.company || '')
+      .replace(/{{name}}/g, lead.name || '');
+
+    const statusMsg = `Sending ${i+1}/${leads.length}: ${lead.name}`;
+    chrome.runtime.sendMessage({ action: 'outreachProgress', percent: pct, status: statusMsg, detail: `Account Slot ${startAccountIdx + accountRotation} → ${lead.email || lead.phone}` }).catch(() => {});
 
     try {
-      if (channel === 'gmail') {
+      if (channel === 'outlook') {
+        // Outlook Visible Automation with Account Rotation
+        const accountIdx = startAccountIdx + (accountRotation % totalAccounts);
+        const outlookComposeUrl = `https://outlook.live.com/mail/${accountIdx}/deeplink/compose?to=${encodeURIComponent(lead.email)}&subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(msg)}`;
+        const tab = await safeCreateTab({ url: outlookComposeUrl, active: true });
+        
+        // Wait for compose window to open and click Send
+        let sent = false;
+        for (let attempt = 0; attempt < 20; attempt++) {
+          await sleep(1500);
+          try {
+            const res = await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: () => {
+                // Try to find and click the Outlook Send button
+                const sendBtn = document.querySelector('[aria-label="Send"]') ||
+                               document.querySelector('button[title="Send"]') ||
+                               document.querySelector('[data-testid="compose-send-button"]') ||
+                               Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Send');
+                if (sendBtn && !sendBtn.disabled) {
+                  sendBtn.click();
+                  return 'SENT';
+                }
+                if (document.querySelector('[aria-label="To"]') || document.querySelector('input[aria-label="To"]')) return 'COMPOSE_READY';
+                return 'LOADING';
+              }
+            });
+            const result = res?.[0]?.result;
+            if (result === 'SENT') { sent = true; break; }
+          } catch (e) { /* Tab still loading */ }
+        }
+        
+        // Close tab after sending (or timeout)
+        await sleep(2000);
+        chrome.tabs.remove(tab.id).catch(() => {});
+        accountRotation++;
+
+      } else if (channel === 'gmail') {
         const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(lead.email)}&su=${encodeURIComponent(sub)}&body=${encodeURIComponent(msg)}`;
         await safeCreateTab({ url: gmailUrl, active: false });
       } else if (channel === 'linkedin' && lead.linkedin) {
@@ -111,9 +160,14 @@ async function processOutreachCampaign(leads, template, subject, channel) {
       console.error('Turbo Outreach Tab Error:', e);
     }
 
-    chrome.runtime.sendMessage({ action: 'outreachProgress', percent: pct }).catch(() => { });
-    await sleep(2500);
+    // Smart random delay between emails
+    if (i < leads.length - 1) {
+      const delay = Math.round(delayMin + Math.random() * (delayMax - delayMin));
+      chrome.runtime.sendMessage({ action: 'outreachProgress', percent: pct, status: `Waiting ${Math.round(delay/1000)}s before next email...`, detail: `${leads.length - i - 1} remaining` }).catch(() => {});
+      await sleep(delay);
+    }
   }
+  chrome.runtime.sendMessage({ action: 'outreachProgress', percent: 100, status: 'Campaign Complete!', detail: `All ${leads.length} emails sent.` }).catch(() => {});
 }
 
 // ── Utility & Helper Functions ───────────────────────────

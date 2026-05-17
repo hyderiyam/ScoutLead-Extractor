@@ -793,14 +793,78 @@ function downloadHTMLReport(html) {
 
 // ── Outreach Tab Logic ────────────────────────────────────
 
-document.querySelectorAll('.channel-btn').forEach(btn => {
+let currentChannel = 'gmail';
+
+// New top channel nav binding
+document.querySelectorAll('.channel-nav-btn').forEach(btn => {
   btn.onclick = () => {
-    document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.channel-nav-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentChannel = btn.dataset.channel;
     renderOutreachLeads();
   };
 });
+
+// Account mode toggle (rotate vs single)
+const accountModeSelect = document.getElementById('accountModeSelect');
+const accountCountRow = document.getElementById('accountCountRow');
+const singleAccountRow = document.getElementById('singleAccountRow');
+if (accountModeSelect) {
+  accountModeSelect.onchange = () => {
+    const isSingle = accountModeSelect.value === 'single';
+    accountCountRow.style.display = isSingle ? 'none' : 'flex';
+    singleAccountRow.style.display = isSingle ? 'flex' : 'none';
+  };
+}
+
+// Verify accounts login status
+const verifyAccountsBtn = document.getElementById('verifyAccountsBtn');
+const accountVerifyStatus = document.getElementById('accountVerifyStatus');
+if (verifyAccountsBtn) {
+  verifyAccountsBtn.onclick = async () => {
+    const isSingle = accountModeSelect?.value === 'single';
+    const count = isSingle ? 1 : parseInt(document.getElementById('accountCountInput')?.value || 4);
+    const startIdx = isSingle ? parseInt(document.getElementById('singleAccountInput')?.value || 0) : 0;
+    
+    verifyAccountsBtn.textContent = 'Checking...';
+    verifyAccountsBtn.disabled = true;
+    accountVerifyStatus.style.display = 'block';
+    accountVerifyStatus.innerHTML = '';
+
+    const results = [];
+    for (let i = startIdx; i < startIdx + count; i++) {
+      const url = `https://outlook.live.com/mail/${i}/`;
+      try {
+        const tab = await chrome.tabs.create({ url, active: false });
+        await new Promise(r => setTimeout(r, 4000));
+        const res = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const url = window.location.href;
+            const body = document.body?.innerText || '';
+            if (url.includes('login') || url.includes('Live.com') || body.includes('Sign in')) return 'LOGGED_OUT';
+            return 'LOGGED_IN';
+          }
+        });
+        const status = res?.[0]?.result || 'UNKNOWN';
+        results.push({ index: i, status });
+        chrome.tabs.remove(tab.id).catch(() => {});
+      } catch (e) {
+        results.push({ index: i, status: 'ERROR' });
+      }
+    }
+
+    accountVerifyStatus.innerHTML = results.map(r =>
+      `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${r.status === 'LOGGED_IN' ? '#10b981' : '#ef4444'};display:inline-block"></span>
+        <span style="color:${r.status === 'LOGGED_IN' ? '#10b981' : '#ef4444'}">Account ${r.index}: ${r.status === 'LOGGED_IN' ? '✓ Logged In' : '✗ Not Logged In'}</span>
+      </div>`
+    ).join('');
+
+    verifyAccountsBtn.textContent = 'CHECK ACCOUNTS LOGIN STATUS';
+    verifyAccountsBtn.disabled = false;
+  };
+}
 
 outreachDrop.onclick = () => outreachFile.click();
 outreachFile.onchange = (e) => {
@@ -813,14 +877,14 @@ outreachFile.onchange = (e) => {
     outreachLeads = rows.map(r => ({
       name: r.Business_Name || r.Company_Name || r.name || 'Unknown',
       company: r.Business_Name || r.Company_Name || r.name || 'Unknown',
-      email: r.Email || r.email || '',
-      phone: r.Phone || r.Phone_Number || r.phone || '',
-      linkedin: r.Top_Profile || r.LinkedIn || '',
+      email: r.Email_Address || r.Email || r.email || '',
+      phone: r.Phone_Number || r.Phone || r.phone || '',
+      linkedin: r.LinkedIn_Profile || r.Top_Profile || r.LinkedIn || '',
       website: r.Website || r.website || '',
-      leadType: r.Lead_Type || 'Unknown',
+      leadType: r.Lead_Type || 'Lead',
       isWhatsApp: (r.Is_WhatsApp === 'TRUE' || r.Is_WhatsApp === true),
       selected: true
-    })).filter(r => r.email || r.phone || r.linkedin); // Only keep leads with contact info
+    })).filter(r => r.email || r.phone || r.linkedin);
     document.getElementById('outreachFileInfo').style.display = 'block';
     document.getElementById('outreachFileName').textContent = `${file.name} (${outreachLeads.length} leads)`;
     saveUIState();
@@ -830,22 +894,15 @@ outreachFile.onchange = (e) => {
 };
 
 // ── Smart Filtered Selection ──────────────────────────────
-selectAllBtn.onclick = () => { 
+selectAllBtn.onclick = () => {
   const filteredIdxs = getFilteredLeads().map(l => l._idx);
-  outreachLeads.forEach((l, idx) => {
-    if (filteredIdxs.includes(idx)) l.selected = true;
-  });
-  saveUIState();
-  renderOutreachLeads(); 
+  outreachLeads.forEach((l, idx) => { if (filteredIdxs.includes(idx)) l.selected = true; });
+  saveUIState(); renderOutreachLeads();
 };
-
-deselectAllBtn.onclick = () => { 
+deselectAllBtn.onclick = () => {
   const filteredIdxs = getFilteredLeads().map(l => l._idx);
-  outreachLeads.forEach((l, idx) => {
-    if (filteredIdxs.includes(idx)) l.selected = false;
-  });
-  saveUIState();
-  renderOutreachLeads(); 
+  outreachLeads.forEach((l, idx) => { if (filteredIdxs.includes(idx)) l.selected = false; });
+  saveUIState(); renderOutreachLeads();
 };
 
 const isNa = (val) => !val || val === 'N/A' || val === 'n/a' || val === 'undefined' || val === 'null' || val === '';
@@ -861,53 +918,37 @@ function getFilteredLeads() {
 
 function renderOutreachLeads() {
   const filtered = getFilteredLeads();
-
   const active = filtered.filter(l => l.selected).length;
-  const totalForChannel = filtered.length;
-  outreachLeadCount.textContent = `${active} / ${totalForChannel} for ${currentChannel.charAt(0).toUpperCase() + currentChannel.slice(1)}`;
+  outreachLeadCount.textContent = `${active} / ${filtered.length} Recipients`;
 
-  // Update channel button counts
+  // Update top navbar badges
   const emailCount = outreachLeads.filter(l => !isNa(l.email)).length;
   const linkedinCount = outreachLeads.filter(l => !isNa(l.linkedin)).length;
   const whatsappCount = outreachLeads.filter(l => !isNa(l.phone)).length;
-  
-  document.querySelectorAll('.channel-btn').forEach(btn => {
-    const ch = btn.dataset.channel;
-    const countEl = btn.querySelector('.ch-count');
-    if (countEl) {
-      countEl.textContent = ch === 'gmail' ? emailCount : ch === 'linkedin' ? linkedinCount : whatsappCount;
-    }
-  });
+  const gEl = document.getElementById('ch-gmail-count');
+  const wEl = document.getElementById('ch-wa-count');
+  const lEl = document.getElementById('ch-li-count');
+  if (gEl) gEl.textContent = emailCount;
+  if (wEl) wEl.textContent = whatsappCount;
+  if (lEl) lEl.textContent = linkedinCount;
 
   if (filtered.length === 0 && outreachLeads.length > 0) {
-    outreachLeadList.innerHTML = `<div class="empty-outreach">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-      <p>Zero valid leads for <strong>${currentChannel}</strong></p>
-    </div>`;
+    outreachLeadList.innerHTML = `<div class="empty-outreach"><p>No leads with <strong>${currentChannel}</strong> contact info</p></div>`;
     return;
   }
 
   outreachLeadList.innerHTML = filtered.map(l => {
-    const typeColor = l.leadType.includes('Full') ? '#059669' : l.leadType.includes('Email') ? '#2563eb' : '#f59e0b';
     const contactLine = currentChannel === 'gmail' ? l.email : currentChannel === 'linkedin' ? truncate(l.linkedin, 35) : l.phone;
-    
+    const color = currentChannel === 'gmail' ? '#2563eb' : currentChannel === 'linkedin' ? '#0a66c2' : '#25d366';
     return `
     <div class="outreach-lead-card ${l.selected ? '' : 'removed'}">
-      <div class="outreach-lead-avatar" style="background:linear-gradient(135deg, ${typeColor}, ${typeColor}dd)">${l.name.charAt(0).toUpperCase()}</div>
+      <div class="outreach-lead-avatar" style="background:linear-gradient(135deg,${color},${color}cc)">${(l.name||'?').charAt(0).toUpperCase()}</div>
       <div class="outreach-lead-info">
         <div class="outreach-lead-name">${esc(l.name)}</div>
-        <div class="outreach-lead-detail">${esc(contactLine)}</div>
-        <div class="outreach-lead-meta">
-          <span class="outreach-type-badge" style="color:${typeColor};border-color:${typeColor}33;background:${typeColor}11">${esc(l.leadType)}</span>
-          <div class="outreach-card-actions">
-            ${l.email ? `<button class="mini-action-btn direct-gmail" data-idx="${l._idx}" title="Gmail Draft">✉️</button>` : ''}
-            ${l.linkedin ? `<button class="mini-action-btn direct-linkedin" data-idx="${l._idx}" title="Open LinkedIn">🔗</button>` : ''}
-            ${l.phone ? `<button class="mini-action-btn direct-whatsapp" data-idx="${l._idx}" title="WhatsApp Chat">💬</button>` : ''}
-          </div>
-        </div>
+        <div class="outreach-lead-detail" style="color:${color}">${esc(contactLine || 'No contact')}</div>
       </div>
       <button class="remove-card-btn toggle-lead-btn" data-idx="${l._idx}" title="${l.selected ? 'Exclude' : 'Include'}">
-        ${l.selected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'}
+        ${l.selected ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'}
       </button>
     </div>`;
   }).join('') || '<div class="empty-outreach"><p>Upload your audit report to begin</p></div>';
@@ -916,81 +957,65 @@ function renderOutreachLeads() {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.dataset.idx);
       outreachLeads[idx].selected = !outreachLeads[idx].selected;
-      saveUIState();
-      renderOutreachLeads();
-    });
-  });
-
-  // Bind Direct Actions
-  document.querySelectorAll('.mini-action-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.idx);
-      const lead = outreachLeads[idx];
-      const template = outreachTemplate.value;
-      const subject = outreachSubject.value;
-      
-      const msg = template
-        .replace(/{{name}}/g, lead.name)
-        .replace(/{{company}}/g, lead.company)
-        .replace(/{{email}}/g, lead.email);
-      
-      const sub = subject
-        .replace(/{{company}}/g, lead.company)
-        .replace(/{{name}}/g, lead.name);
-
-      if (btn.classList.contains('direct-gmail')) {
-        const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(lead.email)}&su=${encodeURIComponent(sub)}&body=${encodeURIComponent(msg)}`;
-        chrome.tabs.create({ url });
-      } else if (btn.classList.contains('direct-linkedin')) {
-        let liUrl = lead.linkedin;
-        if (liUrl && !liUrl.startsWith('http')) liUrl = 'https://' + liUrl;
-        chrome.tabs.create({ url: liUrl });
-        navigator.clipboard.writeText(msg);
-        addLog('Outreach', `LinkedIn profile opened & message copied for ${lead.name}`, 'info');
-      } else if (btn.classList.contains('direct-whatsapp')) {
-        const cleanPhone = lead.phone.replace(/\D/g,'');
-        const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
-        chrome.tabs.create({ url });
-      }
+      saveUIState(); renderOutreachLeads();
     });
   });
 }
 
+// ── Turbo Campaign (Visible Outlook Automation) ────────────
 outreachProcessBtn.onclick = async () => {
-  const filtered = getFilteredLeads();
-  const selected = filtered.filter(l => l.selected);
-  if (selected.length === 0) return alert("Select at least one valid lead for this channel");
-  
+  const filtered = getFilteredLeads().filter(l => l.selected);
+  if (filtered.length === 0) return alert('Select at least one lead with contact info!');
+
   const template = outreachTemplate.value;
   const subject = outreachSubject.value;
-  
-  if (!confirm(`Launch Turbo Mode? This will open ${selected.length} tabs in the background.`)) return;
+  if (!template || !subject) return alert('Please fill in Subject and Message Template first!');
 
-  addLog('Outreach', `Campaign handed to background for ${selected.length} leads...`, 'info');
+  if (currentChannel !== 'gmail') {
+    // For LinkedIn and WhatsApp - open directly
+    chrome.runtime.sendMessage({
+      action: 'startOutreachCampaign',
+      leads: filtered, template, subject, channel: currentChannel
+    });
+    return;
+  }
+
+  // Gmail/Outlook campaign
+  const isSingle = accountModeSelect?.value === 'single';
+  const totalAccounts = isSingle ? 1 : parseInt(document.getElementById('accountCountInput')?.value || 4);
+  const startAccountIdx = isSingle ? parseInt(document.getElementById('singleAccountInput')?.value || 0) : 0;
+  const delayMin = parseInt(document.getElementById('delayMinInput')?.value || 30) * 1000;
+  const delayMax = parseInt(document.getElementById('delayMaxInput')?.value || 60) * 1000;
+
+  if (!confirm(`Launch Turbo Campaign?\n\n📧 ${filtered.length} emails\n📬 ${totalAccounts} account(s)\n⏱ ${delayMin/1000}-${delayMax/1000}s delay\n\nOutlook tabs will open visibly so you can watch the process!`)) return;
+
   document.getElementById('outreachProgress').style.display = 'block';
-  
-  // Send to background so it doesn't stop if popup closes
+  const liveStatus = document.getElementById('outreachLiveStatus');
+
   chrome.runtime.sendMessage({
     action: 'startOutreachCampaign',
-    leads: selected,
-    template: template,
-    subject: subject,
-    channel: currentChannel
+    leads: filtered,
+    template, subject,
+    channel: 'outlook',
+    totalAccounts,
+    startAccountIdx,
+    delayMin,
+    delayMax
   });
 };
 
-// Listen for background progress
+// Listen for background progress updates
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === 'outreachProgress') {
     const pct = msg.percent;
     document.getElementById('outreachProgressBar').style.width = pct + '%';
     document.getElementById('outreachProgressPct').textContent = pct + '%';
-    if (pct === 100) {
-      addLog('Outreach', 'Turbo Campaign Complete! Check your tabs.', 'success');
-      alert("Turbo Mode Complete! All drafts are ready.");
+    document.getElementById('outreachProgressText').textContent = msg.status || 'Sending...';
+    const liveEl = document.getElementById('outreachLiveStatus');
+    if (liveEl && msg.detail) liveEl.textContent = msg.detail;
+    if (pct >= 100) {
+      addLog('Outreach', '✅ Turbo Campaign Complete!', 'success');
+      if (liveEl) liveEl.textContent = '✅ All emails sent successfully!';
     }
   }
 });
-
-

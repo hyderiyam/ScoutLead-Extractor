@@ -132,86 +132,120 @@
 
       <!-- ── OUTREACH TAB ── -->
       <div id="tab-outreach" class="tab-pane">
+
+        <!-- Top Channel Navbar -->
+        <div class="outreach-channel-nav">
+          <button class="channel-nav-btn active" data-channel="gmail">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Email <span class="ch-badge" id="ch-gmail-count">0</span>
+          </button>
+          <button class="channel-nav-btn" data-channel="whatsapp">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.016 2.035-.535c.944.514 1.96.788 3.234.788 3.18 0 5.766-2.586 5.767-5.766 0-3.18-2.587-5.753-5.764-5.753z"/></svg>
+            WhatsApp <span class="ch-badge" id="ch-wa-count">0</span>
+          </button>
+          <button class="channel-nav-btn" data-channel="linkedin">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+            LinkedIn <span class="ch-badge" id="ch-li-count">0</span>
+          </button>
+        </div>
+
         <div class="outreach-layout">
 
-          <!-- LEFT: Upload + Template -->
+          <!-- LEFT PANEL -->
           <div class="outreach-left">
-            <div class="outreach-section-header">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <span>Import Leads</span>
-            </div>
+
+            <!-- Upload -->
             <div class="outreach-upload-zone" id="outreachDrop">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff9800" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <p>Drop your Audit Excel / CSV here</p>
-              <span class="outreach-hint">Variables: {{name}} {{company}} {{email}}</span>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff9800" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <p>Drop Audit Excel / CSV here</p>
+              <span class="outreach-hint">Use the Excel exported from Audit tab</span>
               <input type="file" id="outreachFile" accept=".xlsx,.xls,.csv" style="display:none"/>
             </div>
             <div id="outreachFileInfo" style="display:none; margin-bottom:10px">
               <span id="outreachFileName" class="file-chip"></span>
             </div>
 
-            <!-- Channel Selector -->
-            <div class="channel-selector">
-              <div class="outreach-section-header" style="margin-bottom:10px">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"></path><path d="M22 2L15 22 11 13 2 9l20-7z"></path></svg>
-                <span>Channel</span>
+            <!-- Account Selector -->
+            <div class="outreach-section-block">
+              <div class="outreach-section-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                Sender Account
               </div>
-              <div class="channel-btns">
-                <button class="channel-btn active" data-channel="gmail">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                  <span>Gmail</span>
-                  <span class="ch-count">0</span>
-                </button>
-                <button class="channel-btn" data-channel="linkedin">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                  <span>LinkedIn</span>
-                  <span class="ch-count">0</span>
-                </button>
-                <button class="channel-btn" data-channel="whatsapp">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.038 3.284l-.542 2.016 2.035-.535c.944.514 1.96.788 3.234.788 3.18 0 5.766-2.586 5.767-5.766 0-3.18-2.587-5.753-5.764-5.753zm0 10.455c-1.127 0-2.227-.305-3.183-.881l-.228-.131-1.191.312.318-1.161-.144-.229c-.633-1.006-.967-2.174-.967-3.366.002-3.455 2.812-6.265 6.268-6.265 3.455 0 6.265 2.81 6.265 6.266-.002 3.456-2.812 6.266-6.268 6.266z"/></svg>
-                  <span>WhatsApp</span>
-                  <span class="ch-count">0</span>
-                </button>
+              <select id="accountModeSelect" class="styled-select" style="width:100%; margin-bottom:8px">
+                <option value="rotate">Auto-Rotate (All Accounts)</option>
+                <option value="single">Use Specific Account Only</option>
+              </select>
+              <div id="accountCountRow" style="display:flex; gap:8px; align-items:center; margin-bottom:6px">
+                <label style="font-size:11px; color:var(--text-muted); white-space:nowrap">Total accounts logged in:</label>
+                <input type="number" id="accountCountInput" class="styled-input" value="4" min="1" max="20" style="width:55px; padding:4px 8px; text-align:center"/>
+              </div>
+              <div id="singleAccountRow" style="display:none; gap:8px; align-items:center; margin-bottom:6px">
+                <label style="font-size:11px; color:var(--text-muted); white-space:nowrap">Account index (0 = first):</label>
+                <input type="number" id="singleAccountInput" class="styled-input" value="0" min="0" max="19" style="width:55px; padding:4px 8px; text-align:center"/>
+              </div>
+              <button id="verifyAccountsBtn" style="width:100%; padding:7px; border:1px dashed #475569; border-radius:8px; background:transparent; color:#64748b; font-size:11px; font-weight:700; cursor:pointer; letter-spacing:0.5px; transition:0.2s">
+                CHECK ACCOUNTS LOGIN STATUS
+              </button>
+              <div id="accountVerifyStatus" style="margin-top:6px; font-size:11px; display:none"></div>
+            </div>
+
+            <!-- Delay -->
+            <div class="outreach-section-block">
+              <div class="outreach-section-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Safety Delay Between Emails
+              </div>
+              <div style="display:flex; gap:8px; align-items:center">
+                <input type="number" id="delayMinInput" class="styled-input" value="30" min="5" max="300" style="width:55px; padding:4px 8px; text-align:center"/>
+                <span style="font-size:11px; color:var(--text-muted)">to</span>
+                <input type="number" id="delayMaxInput" class="styled-input" value="60" min="10" max="600" style="width:55px; padding:4px 8px; text-align:center"/>
+                <span style="font-size:11px; color:var(--text-muted)">seconds</span>
               </div>
             </div>
 
-            <!-- Template Editor -->
-            <div class="outreach-section-header" style="margin:12px 0 8px">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
-              <span>Message Template</span>
+            <!-- Template -->
+            <div class="outreach-section-block">
+              <div class="outreach-section-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                Message Template
+                <span style="font-size:10px; color:#94a3b8; margin-left:auto">{{name}} {{company}} {{website}}</span>
+              </div>
+              <input type="text" id="outreachSubject" class="styled-input wide" placeholder="Subject: Partnership Opportunity with {{company}}" style="margin-bottom:8px"/>
+              <textarea id="outreachTemplate" class="styled-textarea" placeholder="Hi {{name}},&#10;&#10;I came across {{company}} and wanted to reach out...&#10;&#10;Best regards"></textarea>
             </div>
-            <input type="text" id="outreachSubject" class="styled-input wide" placeholder="Subject: Re: {{company}} Partnership" style="margin-bottom:8px"/>
-            <textarea id="outreachTemplate" class="styled-textarea" placeholder="Hi {{name}},&#10;&#10;I was reviewing {{company}}'s website and noticed...&#10;&#10;Best regards"></textarea>
 
-            <button id="outreachProcessBtn" class="primary-btn wide-btn" style="margin-top:12px; background: linear-gradient(135deg, #ff9800, #f57c00);">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              Process All Leads
+            <!-- Start Button -->
+            <button id="outreachProcessBtn" class="primary-btn wide-btn" style="margin-top:4px; background:linear-gradient(135deg, #ff6b35, #ff9800); padding:13px; font-size:13px; font-weight:800; letter-spacing:0.5px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:8px"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              START TURBO CAMPAIGN
             </button>
+
+            <!-- Progress -->
+            <div id="outreachProgress" style="display:none; margin-top:12px">
+              <div class="progress-meta"><span id="outreachProgressText">Sending...</span><span id="outreachProgressPct">0%</span></div>
+              <div class="progress-track"><div id="outreachProgressBar" class="progress-fill" style="background:linear-gradient(90deg,#ff6b35,#ff9800)"></div></div>
+              <div id="outreachLiveStatus" style="font-size:11px; color:#64748b; margin-top:6px; text-align:center"></div>
+            </div>
           </div>
 
-          <!-- RIGHT: Lead Cards with Cross -->
+          <!-- RIGHT PANEL: Lead List -->
           <div class="outreach-right">
             <div class="outreach-section-header">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
               <span id="outreachLeadCount">0 Recipients</span>
-              <button id="selectAllBtn" class="ghost-btn small" style="margin-left:auto">Select All</button>
-              <button id="deselectAllBtn" class="ghost-btn small">Deselect All</button>
+              <button id="selectAllBtn" class="ghost-btn small" style="margin-left:auto">All</button>
+              <button id="deselectAllBtn" class="ghost-btn small">None</button>
             </div>
             <div id="outreachLeadList" class="outreach-lead-list">
               <div class="empty-outreach">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                 <p>Upload a file to see leads</p>
               </div>
             </div>
           </div>
         </div>
-
-        <!-- Progress Bar for Outreach -->
-        <div id="outreachProgress" style="display:none; margin-top:16px">
-          <div class="progress-meta"><span id="outreachProgressText">Processing...</span><span id="outreachProgressPct">0%</span></div>
-          <div class="progress-track"><div id="outreachProgressBar" class="progress-fill" style="background: linear-gradient(90deg, #ff9800, #f57c00)"></div></div>
-        </div>
       </div>
+
 
       <!-- ── HISTORY TAB ── -->
       <div id="tab-history" class="tab-pane">
