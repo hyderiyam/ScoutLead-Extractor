@@ -166,27 +166,32 @@
             </div>
 
             <!-- Account Selector -->
-            <div class="outreach-section-block">
+            <div class="outreach-section-block" id="outlookSenderBlock">
               <div class="outreach-section-label">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                Sender Account
+                Sender Accounts
               </div>
-              <select id="accountModeSelect" class="styled-select" style="width:100%; margin-bottom:8px">
-                <option value="rotate">Auto-Rotate (All Accounts)</option>
-                <option value="single">Use Specific Account Only</option>
-              </select>
-              <div id="accountCountRow" style="display:flex; gap:8px; align-items:center; margin-bottom:6px">
-                <label style="font-size:11px; color:var(--text-muted); white-space:nowrap">Total accounts logged in:</label>
-                <input type="number" id="accountCountInput" class="styled-input" value="4" min="1" max="20" style="width:55px; padding:4px 8px; text-align:center"/>
+              
+              <div id="verifyPreflightBox" style="text-align:center">
+                <p style="font-size:10px; color:#64748b; margin:0 0 8px 0; line-height:1.4">Verify your active Outlook sessions first. We will extract the actual logged-in emails to prevent blind sending.</p>
+                <div style="display:flex; gap:8px; justify-content:center; margin-bottom:8px">
+                  <span style="font-size:10px; color:var(--text-muted)">Scan first</span>
+                  <input type="number" id="accountScanLimit" value="4" min="1" max="20" class="styled-input" style="width:40px; padding:2px; text-align:center; height:20px; font-size:10px">
+                  <span style="font-size:10px; color:var(--text-muted)">indices</span>
+                </div>
+                <button id="verifyAccountsBtn" style="width:100%; padding:7px; border:1px solid #475569; border-radius:8px; background:#1e293b; color:#fff; font-size:11px; font-weight:700; cursor:pointer; letter-spacing:0.5px; transition:0.2s">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> VERIFY ACTIVE OUTLOOKS
+                </button>
+                <div id="accountVerifyStatus" style="margin-top:6px; font-size:11px; display:none"></div>
               </div>
-              <div id="singleAccountRow" style="display:none; gap:8px; align-items:center; margin-bottom:6px">
-                <label style="font-size:11px; color:var(--text-muted); white-space:nowrap">Account index (0 = first):</label>
-                <input type="number" id="singleAccountInput" class="styled-input" value="0" min="0" max="19" style="width:55px; padding:4px 8px; text-align:center"/>
+
+              <div id="verifiedAccountsBox" style="display:none">
+                <select id="verifiedAccountDropdown" class="styled-select" style="width:100%; margin-bottom:8px">
+                  <option value="rotate">Auto-Rotate All Verified Accounts</option>
+                </select>
+                <div id="verifiedAccountsList" style="font-size:11px; color:#10b981; margin-top:4px; line-height:1.4"></div>
+                <button id="reverifyBtn" style="width:100%; margin-top:6px; padding:4px; border:none; background:transparent; color:#64748b; font-size:10px; text-decoration:underline; cursor:pointer">Re-scan accounts</button>
               </div>
-              <button id="verifyAccountsBtn" style="width:100%; padding:7px; border:1px dashed #475569; border-radius:8px; background:transparent; color:#64748b; font-size:11px; font-weight:700; cursor:pointer; letter-spacing:0.5px; transition:0.2s">
-                CHECK ACCOUNTS LOGIN STATUS
-              </button>
-              <div id="accountVerifyStatus" style="margin-top:6px; font-size:11px; display:none"></div>
             </div>
 
             <!-- Delay -->

@@ -74,8 +74,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   else if (msg.action === 'startOutreachCampaign') {
     processOutreachCampaign(msg.leads, msg.template, msg.subject, msg.channel, {
-      totalAccounts: msg.totalAccounts || 4,
-      startAccountIdx: msg.startAccountIdx || 0,
+      activeAccounts: msg.activeAccounts || [0],
       delayMin: msg.delayMin || 30000,
       delayMax: msg.delayMax || 60000
     });
@@ -86,7 +85,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // ── Outreach Campaign Logic ──────────────────────────────
 
 async function processOutreachCampaign(leads, template, subject, channel, opts = {}) {
-  const { totalAccounts = 4, startAccountIdx = 0, delayMin = 30000, delayMax = 60000 } = opts;
+  const { activeAccounts = [0], delayMin = 30000, delayMax = 60000 } = opts;
   let accountRotation = 0;
 
   for (let i = 0; i < leads.length; i++) {
@@ -103,14 +102,15 @@ async function processOutreachCampaign(leads, template, subject, channel, opts =
       .replace(/{{company}}/g, lead.company || '')
       .replace(/{{name}}/g, lead.name || '');
 
+    const currentAccountIdx = activeAccounts[accountRotation % activeAccounts.length];
+
     const statusMsg = `Sending ${i+1}/${leads.length}: ${lead.name}`;
-    chrome.runtime.sendMessage({ action: 'outreachProgress', percent: pct, status: statusMsg, detail: `Account Slot ${startAccountIdx + accountRotation} → ${lead.email || lead.phone}` }).catch(() => {});
+    chrome.runtime.sendMessage({ action: 'outreachProgress', percent: pct, status: statusMsg, detail: `Sender Account Index ${currentAccountIdx} → ${lead.email || lead.phone}` }).catch(() => {});
 
     try {
       if (channel === 'outlook') {
-        // Outlook Visible Automation with Account Rotation
-        const accountIdx = startAccountIdx + (accountRotation % totalAccounts);
-        const outlookComposeUrl = `https://outlook.live.com/mail/${accountIdx}/deeplink/compose?to=${encodeURIComponent(lead.email)}&subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(msg)}`;
+        // Outlook Visible Automation with Active Account Rotation
+        const outlookComposeUrl = `https://outlook.live.com/mail/${currentAccountIdx}/deeplink/compose?to=${encodeURIComponent(lead.email)}&subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(msg)}`;
         const tab = await safeCreateTab({ url: outlookComposeUrl, active: true });
         
         // Wait for compose window to open and click Send
@@ -514,8 +514,10 @@ function scrapeFullPage() {
     for (const pat of phonePatterns) {
       const matches = text.match(pat);
       if (matches) matches.forEach(m => {
-        const clean = m.replace(/[^\d\+\-\(\)\.\s]/g, '').trim();
-        if (clean) allPhones.push(clean);
+        let clean = m.replace(/[^\d+]/g, ''); // Strict: Keep ONLY digits and +
+        if (clean.length >= 10 && clean.length <= 15) { // Enforce standard global lengths
+          allPhones.push(clean);
+        }
       });
     }
     // Deduplicate
@@ -743,11 +745,24 @@ async function verifyWhatsAppDeeply(phoneNumber) {
         });
         
         const state = res?.[0]?.result;
-        if (state === 'VALID') return true;
         if (state === 'INVALID') return false;
         if (state === 'AUTH_REQUIRED') {
            console.warn('ScoutLead: WhatsApp Web is not logged in.');
            return false;
+        }
+        if (state === 'VALID') {
+           // ZERO FALSE POSITIVE: Wait an extra 1.5 seconds to see if the "Invalid Number" popup renders over the chat
+           await sleep(1500);
+           const verifyAgain = await chrome.scripting.executeScript({
+             target: { tabId },
+             func: () => {
+               const txt = document.body.innerText;
+               if (document.querySelector('[data-testid="popup-contents"]') || txt.includes('invalid') || txt.includes('Phone number shared via url is invalid')) return 'INVALID';
+               return 'STILL_VALID';
+             }
+           });
+           if (verifyAgain?.[0]?.result === 'INVALID') return false;
+           return true;
         }
       } catch (err) { /* Scripting might fail if tab is too early */ }
     }

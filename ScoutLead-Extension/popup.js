@@ -805,33 +805,27 @@ document.querySelectorAll('.channel-nav-btn').forEach(btn => {
 });
 
 // Account mode toggle (rotate vs single)
-const accountModeSelect = document.getElementById('accountModeSelect');
-const accountCountRow = document.getElementById('accountCountRow');
-const singleAccountRow = document.getElementById('singleAccountRow');
-if (accountModeSelect) {
-  accountModeSelect.onchange = () => {
-    const isSingle = accountModeSelect.value === 'single';
-    accountCountRow.style.display = isSingle ? 'none' : 'flex';
-    singleAccountRow.style.display = isSingle ? 'flex' : 'none';
-  };
-}
+let verifiedOutlookAccounts = [];
 
-// Verify accounts login status
 const verifyAccountsBtn = document.getElementById('verifyAccountsBtn');
 const accountVerifyStatus = document.getElementById('accountVerifyStatus');
+const verifyPreflightBox = document.getElementById('verifyPreflightBox');
+const verifiedAccountsBox = document.getElementById('verifiedAccountsBox');
+const verifiedAccountDropdown = document.getElementById('verifiedAccountDropdown');
+const verifiedAccountsList = document.getElementById('verifiedAccountsList');
+const reverifyBtn = document.getElementById('reverifyBtn');
+
 if (verifyAccountsBtn) {
   verifyAccountsBtn.onclick = async () => {
-    const isSingle = accountModeSelect?.value === 'single';
-    const count = isSingle ? 1 : parseInt(document.getElementById('accountCountInput')?.value || 4);
-    const startIdx = isSingle ? parseInt(document.getElementById('singleAccountInput')?.value || 0) : 0;
+    const scanLimit = parseInt(document.getElementById('accountScanLimit')?.value || 4);
     
-    verifyAccountsBtn.textContent = 'Checking...';
+    verifyAccountsBtn.innerHTML = 'CHECKING...';
     verifyAccountsBtn.disabled = true;
     accountVerifyStatus.style.display = 'block';
-    accountVerifyStatus.innerHTML = '';
+    accountVerifyStatus.innerHTML = 'Scanning Outlook tabs in background...';
+    verifiedOutlookAccounts = [];
 
-    const results = [];
-    for (let i = startIdx; i < startIdx + count; i++) {
+    for (let i = 0; i < scanLimit; i++) {
       const url = `https://outlook.live.com/mail/${i}/`;
       try {
         const tab = await chrome.tabs.create({ url, active: false });
@@ -839,29 +833,57 @@ if (verifyAccountsBtn) {
         const res = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
-            const url = window.location.href;
+            const currentUrl = window.location.href;
             const body = document.body?.innerText || '';
-            if (url.includes('login') || url.includes('Live.com') || body.includes('Sign in')) return 'LOGGED_OUT';
-            return 'LOGGED_IN';
+            if (currentUrl.includes('login') || currentUrl.includes('Live.com') || body.includes('Sign in')) return { status: 'LOGGED_OUT' };
+            
+            let email = `Account_${Math.random().toString(36).substr(2,4)}@outlook.com`;
+            try {
+              const meLink = document.getElementById('O365_MainLink_Me');
+              if (meLink && meLink.getAttribute('aria-label')) {
+                const match = meLink.getAttribute('aria-label').match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                if (match) email = match[1];
+              } else {
+                const anyEmailMatch = document.body.innerHTML.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                if (anyEmailMatch) email = anyEmailMatch[1];
+              }
+            } catch(e){}
+            return { status: 'LOGGED_IN', email };
           }
         });
-        const status = res?.[0]?.result || 'UNKNOWN';
-        results.push({ index: i, status });
+        
+        const data = res?.[0]?.result || { status: 'UNKNOWN' };
+        if (data.status === 'LOGGED_IN') {
+           verifiedOutlookAccounts.push({ index: i, email: data.email });
+        }
         chrome.tabs.remove(tab.id).catch(() => {});
       } catch (e) {
-        results.push({ index: i, status: 'ERROR' });
+        console.error('Tab error', e);
       }
     }
 
-    accountVerifyStatus.innerHTML = results.map(r =>
-      `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <span style="width:10px;height:10px;border-radius:50%;background:${r.status === 'LOGGED_IN' ? '#10b981' : '#ef4444'};display:inline-block"></span>
-        <span style="color:${r.status === 'LOGGED_IN' ? '#10b981' : '#ef4444'}">Account ${r.index}: ${r.status === 'LOGGED_IN' ? '✓ Logged In' : '✗ Not Logged In'}</span>
-      </div>`
-    ).join('');
+    if (verifiedOutlookAccounts.length > 0) {
+      verifyPreflightBox.style.display = 'none';
+      verifiedAccountsBox.style.display = 'block';
+      verifiedAccountDropdown.innerHTML = '<option value="rotate">Auto-Rotate All Verified Accounts</option>';
+      verifiedOutlookAccounts.forEach(acc => {
+        verifiedAccountDropdown.innerHTML += `<option value="${acc.index}">${acc.email}</option>`;
+      });
+      verifiedAccountsList.innerHTML = verifiedOutlookAccounts.map(acc => `<div>✓ ${acc.email} <span style="color:#94a3b8;font-size:9px">(Index ${acc.index})</span></div>`).join('');
+    } else {
+      accountVerifyStatus.innerHTML = '<span style="color:#ef4444">No active Outlook sessions found. Please login to Outlook first.</span>';
+    }
 
-    verifyAccountsBtn.textContent = 'CHECK ACCOUNTS LOGIN STATUS';
+    verifyAccountsBtn.innerHTML = 'VERIFY ACTIVE OUTLOOKS';
     verifyAccountsBtn.disabled = false;
+  };
+}
+
+if (reverifyBtn) {
+  reverifyBtn.onclick = () => {
+    verifiedAccountsBox.style.display = 'none';
+    verifyPreflightBox.style.display = 'block';
+    accountVerifyStatus.style.display = 'none';
   };
 }
 
@@ -872,20 +894,43 @@ outreachFile.onchange = (e) => {
   const reader = new FileReader();
   reader.onload = e => {
     const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-    outreachLeads = rows.map(r => ({
-      name: r.Business_Name || r.Company_Name || r.name || 'Unknown',
-      company: r.Business_Name || r.Company_Name || r.name || 'Unknown',
-      email: r.Email_Address || r.Email || r.email || '',
-      phone: r.Phone_Number || r.Phone || r.phone || '',
-      linkedin: r.LinkedIn_Profile || r.Top_Profile || r.LinkedIn || '',
-      website: r.Website || r.website || '',
-      leadType: r.Lead_Type || 'Lead',
-      isWhatsApp: (r.Is_WhatsApp === 'TRUE' || r.Is_WhatsApp === true),
-      selected: true
-    })).filter(r => r.email || r.phone || r.linkedin);
+    
+    // Combine all sheets
+    let allRows = [];
+    wb.SheetNames.forEach(sheetName => {
+      allRows = allRows.concat(XLSX.utils.sheet_to_json(wb.Sheets[sheetName]));
+    });
+
+    const dedupMap = new Set();
+    outreachLeads = [];
+
+    allRows.forEach(r => {
+      const email = r.Email_Address || r.Best_Email || r.Email || r.email || '';
+      const phone = r.Phone_Number || r.Phone || r.phone || '';
+      const linkedin = r.LinkedIn_Profile || r.Best_LinkedIn || r.Top_Profile || r.LinkedIn || '';
+      
+      // Deduplicate by contact info combo
+      const key = `${email}-${phone}-${linkedin}`.toLowerCase();
+      if (!key || key === '--' || dedupMap.has(key)) return;
+      dedupMap.add(key);
+
+      if (email || phone || linkedin) {
+        outreachLeads.push({
+          name: r.Business_Name || r.Company_Name || r.Company || r.name || 'Unknown',
+          company: r.Business_Name || r.Company_Name || r.Company || r.name || 'Unknown',
+          email: email,
+          phone: phone,
+          linkedin: linkedin,
+          website: r.Website || r.website || '',
+          leadType: r.Lead_Type || 'Lead',
+          isWhatsApp: (r.Is_WhatsApp === 'TRUE' || r.Is_WhatsApp === true),
+          selected: true
+        });
+      }
+    });
+
     document.getElementById('outreachFileInfo').style.display = 'block';
-    document.getElementById('outreachFileName').textContent = `${file.name} (${outreachLeads.length} leads)`;
+    document.getElementById('outreachFileName').textContent = `${file.name} (${outreachLeads.length} unique leads)`;
     saveUIState();
     renderOutreachLeads();
   };
@@ -910,7 +955,7 @@ function getFilteredLeads() {
   return outreachLeads.map((l, idx) => ({...l, _idx: idx})).filter(l => {
     if (currentChannel === 'gmail') return !isNa(l.email);
     if (currentChannel === 'linkedin') return !isNa(l.linkedin);
-    if (currentChannel === 'whatsapp') return !isNa(l.phone);
+    if (currentChannel === 'whatsapp') return !isNa(l.phone) && l.isWhatsApp === true; // Strict WhatsApp filter
     return true;
   });
 }
@@ -980,13 +1025,23 @@ outreachProcessBtn.onclick = async () => {
   }
 
   // Gmail/Outlook campaign
-  const isSingle = accountModeSelect?.value === 'single';
-  const totalAccounts = isSingle ? 1 : parseInt(document.getElementById('accountCountInput')?.value || 4);
-  const startAccountIdx = isSingle ? parseInt(document.getElementById('singleAccountInput')?.value || 0) : 0;
+  if (verifiedOutlookAccounts.length === 0) {
+    return alert('Please VERIFY ACTIVE OUTLOOKS first! We need to know which accounts are logged in.');
+  }
+
+  const selectedMode = verifiedAccountDropdown.value;
+  let activeAccounts = [];
+  
+  if (selectedMode === 'rotate') {
+    activeAccounts = verifiedOutlookAccounts.map(a => a.index);
+  } else {
+    activeAccounts = [parseInt(selectedMode)];
+  }
+
   const delayMin = parseInt(document.getElementById('delayMinInput')?.value || 30) * 1000;
   const delayMax = parseInt(document.getElementById('delayMaxInput')?.value || 60) * 1000;
 
-  if (!confirm(`Launch Turbo Campaign?\n\n📧 ${filtered.length} emails\n📬 ${totalAccounts} account(s)\n⏱ ${delayMin/1000}-${delayMax/1000}s delay\n\nOutlook tabs will open visibly so you can watch the process!`)) return;
+  if (!confirm(`Launch Turbo Campaign?\n\n📧 ${filtered.length} emails\n📬 ${activeAccounts.length} verified account(s) ready\n⏱ ${delayMin/1000}-${delayMax/1000}s delay\n\nOutlook tabs will open visibly so you can watch the process!`)) return;
 
   document.getElementById('outreachProgress').style.display = 'block';
   const liveStatus = document.getElementById('outreachLiveStatus');
@@ -996,8 +1051,7 @@ outreachProcessBtn.onclick = async () => {
     leads: filtered,
     template, subject,
     channel: 'outlook',
-    totalAccounts,
-    startAccountIdx,
+    activeAccounts,
     delayMin,
     delayMax
   });
