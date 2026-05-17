@@ -793,9 +793,8 @@ function downloadHTMLReport(html) {
 
 // ── Outreach Tab Logic ────────────────────────────────────
 
-let currentChannel = 'gmail';
-
 // New top channel nav binding
+
 document.querySelectorAll('.channel-nav-btn').forEach(btn => {
   btn.onclick = () => {
     document.querySelectorAll('.channel-nav-btn').forEach(b => b.classList.remove('active'));
